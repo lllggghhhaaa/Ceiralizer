@@ -12,8 +12,12 @@
 //     See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System.Text;
 using Ceiralizer;
 using Ceiralizer.Test;
+
+// Default is UNICODE, change to UTF8 to reduce the size.
+PacketSerializer.StringEncoder = Encoding.UTF8;
 
 IEnumerable<byte> data = PacketSerializer.Serialize(new CeiraPacket
 {
@@ -25,7 +29,8 @@ IEnumerable<byte> data = PacketSerializer.Serialize(new CeiraPacket
     {
         Ceirinha = "Ceira purinha"
     },
-    Name = "Ceira"
+    Name = "Ceira",
+    IsWorking = true
 });
 
 CeiraPacket packet = PacketSerializer.Deserialize<CeiraPacket>(data);
@@ -35,3 +40,9 @@ Console.WriteLine(packet.Value);
 Console.WriteLine(packet.Prefix);
 Console.WriteLine(packet.Ceirinha.Ceirinha);
 Console.WriteLine(packet.Name);
+Console.WriteLine(packet.IsWorking);
+
+Console.WriteLine();
+
+foreach (byte b in data)
+    Console.Write(Convert.ToString(b, 2).PadLeft(8, '0') + ' ');

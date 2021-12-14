@@ -27,6 +27,8 @@ public struct CeiraPacket : IPacket
     [PacketField] public CeirinhaPacket Ceirinha;
 
     [PacketField] public string Name;
+
+    [PacketField] public bool IsWorking;
 }
 
 public struct CeirinhaPacket : IPacket

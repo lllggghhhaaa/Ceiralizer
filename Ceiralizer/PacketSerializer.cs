@@ -21,8 +21,7 @@ public static class PacketSerializer
 {
     public static Encoding StringEncoder = Encoding.Unicode;
     
-    public static IEnumerable<byte> Serialize<T>(T packet) where T : IPacket, new()
-        => RawSerialize(packet);
+    public static IEnumerable<byte> Serialize<T>(T packet) where T : IPacket, new() => RawSerialize(packet);
 
     private static IEnumerable<byte> RawSerialize(object packet)
     {
@@ -52,7 +51,7 @@ public static class PacketSerializer
 
     public static T Deserialize<T>(IEnumerable<byte> data) where T : IPacket, new()
     {
-        var enumerable = data as byte[] ?? data.ToArray();
+        byte[] enumerable = data as byte[] ?? data.ToArray();
         
         List<byte> dataList = enumerable.ToList();
 
@@ -116,7 +115,7 @@ public static class PacketSerializer
 
     private static byte[] GetDataFromField(object? value, Type type)
     {
-        if (value is null) return Array.Empty<byte>();
+        if (value is null) return new byte[] {0};
         
         switch (type.FullName)
         {
