@@ -117,7 +117,7 @@ Ceira
 
 <br/>
 
-*Note that the Gatbage has been ignored
+*Note that the Garbage has been ignored
 
 2: `int` 11111111 00000000 00000000 00000000 | 255
 ```c#
