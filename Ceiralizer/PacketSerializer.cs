@@ -53,13 +53,11 @@ public static class PacketSerializer
     {
         byte[] enumerable = data as byte[] ?? data.ToArray();
         
-        List<byte> dataList = enumerable.ToList();
+        Chunk chunk = new Chunk(enumerable.ToList());
 
         object packet = new T();
         Type packetType = typeof(T);
         FieldInfo[] fields = packetType.GetFields();
-
-        int index = 0;
 
         foreach (FieldInfo field in fields)
         {
@@ -71,15 +69,9 @@ public static class PacketSerializer
             object? value;
 
             if (typeof(IPacket).IsAssignableFrom(field.FieldType))
-            {
-                value = RawDeserialize(enumerable, index, out int offset, type);
-                index += offset;
-            }
+                value = RawDeserialize(chunk, type);
             else
-            {
-                value = ValueFromByteArray(type, out int offset, index, dataList);
-                index += offset;
-            }
+                value = ValueFromByteArray(chunk, type);
 
             field.SetValue(packet, value);
         }
@@ -87,15 +79,11 @@ public static class PacketSerializer
         return (T) packet;
     }
 
-    private static object? RawDeserialize(IEnumerable<byte> data, int index, out int offset, Type packetType)
+    private static object? RawDeserialize(Chunk chunk, Type packetType)
     {
-        List<byte> dataList = data.ToList();
-
         object? packet = Activator.CreateInstance(packetType);
         FieldInfo[] fields = packetType.GetFields();
 
-        offset = 0;
-        
         foreach (FieldInfo field in fields)
         {
             PacketFieldAttribute? attribute = field.GetCustomAttribute<PacketFieldAttribute>();
@@ -103,9 +91,7 @@ public static class PacketSerializer
 
             Type type = field.FieldType;
 
-            object? value = ValueFromByteArray(type, out int offset2, index, dataList);
-            index += offset2;
-            offset += offset2;
+            object? value = ValueFromByteArray(chunk, type);
 
             field.SetValue(packet, value);
         }
@@ -116,110 +102,17 @@ public static class PacketSerializer
     private static byte[] GetDataFromField(object? value, Type type)
     {
         if (value is null) return new byte[] {0};
-        
-        switch (type.FullName)
-        {
-            case "System.Boolean":
-                return (bool) value ? new byte[] {1} : new byte[] {0};
-            case "System.Byte":
-            case "System.SByte":
-                return new[] { (byte) value };
-            case "System.Char":
-                return StringEncoder.GetBytes(((char) value).ToString());
-            case "System.Double":
-                return BitConverter.GetBytes((double) value);
-            case "System.Single":
-                return BitConverter.GetBytes((float) value);
-            case "System.Int32":
-                return BitConverter.GetBytes((int) value);
-            case "System.UInt32":
-                return BitConverter.GetBytes((uint) value);
-            case "System.Int64":
-                return BitConverter.GetBytes((long) value);
-            case "System.UInt64":
-                return BitConverter.GetBytes((ulong) value);
-            case "System.Int16":
-                return BitConverter.GetBytes((short) value);
-            case "System.UInt16":
-                return BitConverter.GetBytes((ushort) value);
-            
-            case "System.String":
-                string data = (string) value;
-                List<byte> header = new List<byte>(BitConverter.GetBytes(StringEncoder.GetByteCount(data)));
-                header.AddRange(StringEncoder.GetBytes(data));
 
-                return header.ToArray();
-            default:
-                return Array.Empty<byte>();
-        }
+        if (!TypeSerializer.Serializers.ContainsKey(type))
+            return Array.Empty<byte>();
+        
+        return TypeSerializer.Serializers[type].Invoke(value);
     }
 
-    private static object? ValueFromByteArray(Type type, out int offset, int index, List<byte> data)
+    private static object? ValueFromByteArray(Chunk data, Type type)
     {
-        object? value = null;
-        
-        offset = 0;
+        if (!TypeSerializer.Deserializers.ContainsKey(type)) return null;
 
-        switch (type.FullName)
-        {
-            case "System.Boolean":
-                offset = 1;
-                value = data[index] > 0;
-                break;
-            case "System.Byte":
-                offset = 1;
-                value = data[index];
-                break;
-            case "System.SByte":
-                offset = 1;
-                value = (sbyte) data[index];
-                break;
-            case "System.Char":
-                offset = StringEncoder.GetByteCount(" ");
-                value = StringEncoder.GetString(data.GetRange(index, offset).ToArray()).First();
-                break;
-            case "System.Double":
-                offset = 8;
-                value = BitConverter.ToDouble(data.GetRange(index, offset).ToArray());
-                break;
-            case "System.Single":
-                offset = 4;
-                value = BitConverter.ToSingle(data.GetRange(index, offset).ToArray());
-                break;
-            case "System.Int32":
-                offset = 4;
-                value = BitConverter.ToInt32(data.GetRange(index, offset).ToArray());
-                break;
-            case "System.UInt32":
-                offset = 4;
-                value = BitConverter.ToUInt32(data.GetRange(index, offset).ToArray());
-                break;
-            case "System.Int64":
-                offset = 8;
-                value = BitConverter.ToInt64(data.GetRange(index, offset).ToArray());
-                break;
-            case "System.UInt64":
-                offset = 8;
-                value = BitConverter.ToUInt64(data.GetRange(index, offset).ToArray());
-                break;
-            case "System.Int16":
-                offset = 2;
-                value = BitConverter.ToInt16(data.GetRange(index, offset).ToArray());
-                break;
-            case "System.UInt16":
-                offset = 2;
-                value = BitConverter.ToUInt16(data.GetRange(index, offset).ToArray());
-                break;
-            
-            case "System.String":
-                offset = 4;
-                int count = BitConverter.ToInt32(data.GetRange(index, offset).ToArray());
-
-                value = StringEncoder.GetString(data.GetRange(index + offset, count).ToArray());
-                offset += count;
-                break;
-        }
-
-        return value;
+        return TypeSerializer.Deserializers[type].Invoke(data);
     }
 }

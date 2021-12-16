@@ -19,7 +19,32 @@ using Ceiralizer.Test;
 // Default is UNICODE, change to UTF8 to reduce the size.
 PacketSerializer.StringEncoder = Encoding.UTF8;
 
-IEnumerable<byte> data = PacketSerializer.Serialize(new CeiraPacket
+// Add custom class to serialize
+TypeSerializer.Serializers.Add(typeof(Vector2), value =>
+{
+    List<byte> bytes = new List<byte>();
+
+    Vector2 pos = (Vector2) value;
+
+    byte[] x = TypeSerializer.Serializers[typeof(int)].Invoke(pos.X);
+    byte[] y = TypeSerializer.Serializers[typeof(int)].Invoke(pos.Y);
+
+    bytes.AddRange(x);
+    bytes.AddRange(y);
+
+    return bytes.ToArray();
+});
+
+// And also adding deserializer
+TypeSerializer.Deserializers.Add(typeof(Vector2), data =>
+{
+    int x = data.ReadInt();
+    int y = data.ReadInt();
+
+    return new Vector2(x, y);
+});
+
+List<byte> data = PacketSerializer.Serialize(new CeiraPacket
 {
     Op = 2,
     Value = 255,
@@ -30,8 +55,9 @@ IEnumerable<byte> data = PacketSerializer.Serialize(new CeiraPacket
         Ceirinha = "Ceira purinha"
     },
     Name = "Ceira",
-    IsWorking = true
-});
+    IsWorking = true,
+    Position = new Vector2(5, 25)
+}).ToList();
 
 CeiraPacket packet = PacketSerializer.Deserialize<CeiraPacket>(data);
 
@@ -41,8 +67,11 @@ Console.WriteLine(packet.Prefix);
 Console.WriteLine(packet.Ceirinha.Ceirinha);
 Console.WriteLine(packet.Name);
 Console.WriteLine(packet.IsWorking);
+Console.WriteLine($"X: {packet.Position.X}, Y: {packet.Position.Y}");
 
 Console.WriteLine();
 
 foreach (byte b in data)
     Console.Write(Convert.ToString(b, 2).PadLeft(8, '0') + ' ');
+
+Console.WriteLine();

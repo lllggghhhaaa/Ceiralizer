@@ -32,8 +32,39 @@ public struct CeirinhaPacket : IPacket
 
 ### Transforming
 ```c#
-// Declaration.
-CeiraPacket ceira = new CeiraPacket
+using System.Text;
+using Ceiralizer;
+using Ceiralizer.Test;
+
+// Default is UNICODE, change to UTF8 to reduce the size.
+PacketSerializer.StringEncoder = Encoding.UTF8;
+
+// Add custom class to serialize
+TypeSerializer.Serializers.Add(typeof(Vector2), value =>
+{
+    List<byte> bytes = new List<byte>();
+
+    Vector2 pos = (Vector2) value;
+
+    byte[] x = TypeSerializer.Serializers[typeof(int)].Invoke(pos.X);
+    byte[] y = TypeSerializer.Serializers[typeof(int)].Invoke(pos.Y);
+
+    bytes.AddRange(x);
+    bytes.AddRange(y);
+
+    return bytes.ToArray();
+});
+
+// And also adding deserializer
+TypeSerializer.Deserializers.Add(typeof(Vector2), data =>
+{
+    int x = data.ReadInt();
+    int y = data.ReadInt();
+
+    return new Vector2(x, y);
+});
+
+List<byte> data = PacketSerializer.Serialize(new CeiraPacket
 {
     Op = 2,
     Value = 255,
@@ -43,25 +74,20 @@ CeiraPacket ceira = new CeiraPacket
     {
         Ceirinha = "Ceira purinha"
     },
-    Name = "Ceira"
-});
+    Name = "Ceira",
+    IsWorking = true,
+    Position = new Vector2(5, 25)
+}).ToList();
 
-// Changing Encoder.
-// Default is UNICODE, change to UTF8 to reduce the size.
-PacketSerializer.StringEncoder = Encoding.UTF8;
-
-// Serializing.
-IEnumerable<byte> data = PacketSerializer.Serialize(ceira);
-
-// Deserializing.
 CeiraPacket packet = PacketSerializer.Deserialize<CeiraPacket>(data);
 
-// Printing.
 Console.WriteLine(packet.Op);
 Console.WriteLine(packet.Value);
 Console.WriteLine(packet.Prefix);
 Console.WriteLine(packet.Ceirinha.Ceirinha);
 Console.WriteLine(packet.Name);
+Console.WriteLine(packet.IsWorking);
+Console.WriteLine($"X: {packet.Position.X}, Y: {packet.Position.Y}");
 ```
 
 ### Output
@@ -71,6 +97,8 @@ Console.WriteLine(packet.Name);
 c
 Ceira purinha
 Ceira
+True
+X: 5, Y: 25
 ```
 
 ## Supported types
@@ -104,6 +132,11 @@ Ceira
 5.2 | 01000011 01100101 01101001 01110010 | "Ceir"
 5.2 | 01100001                            | "a"
 6   | 00000001                            | True
+7   | 00000101 00000000 00000000 00000000 | 5
+7   | 00011001 00000000 00000000 00000000 | 25
+
+01110010 01100001 00000001 000001
+01 00000000 00000000 00000000 00011001 00000000 00000000 00000000
 ```
 
 *The bytes seem inverted, why the computer reads the list from left to right.
@@ -169,3 +202,50 @@ Ceira
 ```
 
 *Booleans can be 00000000 (False) or 00000001 (True), they represent a byte so as not to interfere with the reading of the packet.
+
+7: `Vector2`
+```c#
+public struct Vector2
+{
+    public int X;
+    public int Y;
+
+    public Vector2(int x = 0, int y = 0)
+    {
+        X = x;
+        Y = y;
+    }
+}
+
+// Declaration in the packet
+[PacketField] public Vector2 Position;
+
+// Serialization
+TypeSerializer.Serializers.Add(typeof(Vector2), value =>
+{
+    List<byte> bytes = new List<byte>();
+
+    Vector2 pos = (Vector2) value;
+
+    byte[] x = TypeSerializer.Serializers[typeof(int)].Invoke(pos.X);
+    byte[] y = TypeSerializer.Serializers[typeof(int)].Invoke(pos.Y);
+
+    bytes.AddRange(x);
+    bytes.AddRange(y);
+
+    return bytes.ToArray();
+});
+
+// Deserialization
+TypeSerializer.Deserializers.Add(typeof(Vector2), data =>
+{
+    int x = data.ReadInt();
+    int y = data.ReadInt();
+
+    return new Vector2(x, y);
+});
+```
+
+00000101 00000000 00000000 00000000 | 5
+
+00011001 00000000 00000000 00000000 | 25
