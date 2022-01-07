@@ -12,8 +12,10 @@
 //     See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System.Collections;
 using System.Reflection;
 using System.Text;
+using Ceiralizer.Utils;
 
 namespace Ceiralizer;
 
@@ -103,6 +105,19 @@ public static class PacketSerializer
     {
         if (value is null) return new byte[] {0};
 
+        if (type.IsArray && TypeSerializer.Serializers.ContainsKey(type.GetElementType()))
+        {
+            Array? values = value as Array;
+
+            if (values is null) return new byte[] {0};
+
+            List<byte> data = new List<byte>(BitConverter.GetBytes(values.Length));
+            
+            foreach (object o in values) data.AddRange(TypeSerializer.Serializers[type.GetElementType()].Invoke(o));
+            
+            return data.ToArray();
+        }
+
         if (!TypeSerializer.Serializers.ContainsKey(type))
             return Array.Empty<byte>();
         
@@ -111,6 +126,21 @@ public static class PacketSerializer
 
     private static object? ValueFromByteArray(Chunk data, Type type)
     {
+        if (type.IsArray && TypeSerializer.Deserializers.ContainsKey(type.GetElementType()))
+        {
+            int length = data.ReadInt();
+
+            object[] values = new object[length];
+
+            for (int i = 0; i < length; i++)
+                values[i] = TypeSerializer.Deserializers[type.GetElementType()].Invoke(data) ?? Array.Empty<byte>();
+
+            var newArray = Array.CreateInstance(type.GetElementType(), length);
+            Array.Copy(values, newArray, values.Length);
+            
+            return newArray;
+        }
+        
         if (!TypeSerializer.Deserializers.ContainsKey(type)) return null;
 
         return TypeSerializer.Deserializers[type].Invoke(data);

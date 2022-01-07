@@ -22,6 +22,8 @@ public struct CeiraPacket : IPacket
 
     [PacketField] public int Value;
 
+    [PacketField] public int[] Ceiras;
+
     [PacketField] public char Prefix;
 
     [PacketField] public CeirinhaPacket Ceirinha;

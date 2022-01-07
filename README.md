@@ -2,6 +2,8 @@
 
 Serialize structs and classes to byte array and vice-versa
 
+Nuget: https://www.nuget.org/packages/Ceiralizer
+
 ## Usage
 
 ### Declaration
@@ -14,6 +16,8 @@ public struct CeiraPacket : IPacket
     public string Garbage;
 
     [PacketField] public int Value;
+    
+    [PacketField] public int[] Ceiras;
 
     [PacketField] public char Prefix;
 
@@ -68,6 +72,7 @@ List<byte> data = PacketSerializer.Serialize(new CeiraPacket
 {
     Op = 2,
     Value = 255,
+    Ceiras = new[] { 4, 66, 95 },
     Garbage = "Lixo",
     Prefix = 'c',
     Ceirinha = new CeirinhaPacket
@@ -83,6 +88,10 @@ CeiraPacket packet = PacketSerializer.Deserialize<CeiraPacket>(data);
 
 Console.WriteLine(packet.Op);
 Console.WriteLine(packet.Value);
+
+foreach (int ceira in packet.Ceiras) Console.Write($" {ceira} ");
+Console.WriteLine();
+
 Console.WriteLine(packet.Prefix);
 Console.WriteLine(packet.Ceirinha.Ceirinha);
 Console.WriteLine(packet.Name);
@@ -94,11 +103,13 @@ Console.WriteLine($"X: {packet.Position.X}, Y: {packet.Position.Y}");
 ```text
 2
 255
+ 4  66  95
 c
 Ceira purinha
 Ceira
 True
 X: 5, Y: 25
+
 ```
 
 ## Supported types
@@ -122,18 +133,22 @@ X: 5, Y: 25
 ```text
 1   | 00000010 00000000                   | 2
 2   | 11111111 00000000 00000000 00000000 | 255
-3   | 01100011                            | 'c'
-4.1 | 00001101 00000000 00000000 00000000 | 13
-4.2 | 01000011 01100101 01101001 01110010 | "Ceir"
-4.2 | 01100001 00100000 01110000 01110101 | "a pu"
-4.2 | 01110010 01101001 01101110 01101000 | "rinh"
-4.2 | 01100001                            | "a"
-5.1 | 00000101 00000000 00000000 00000000 | 5
+3.1 | 00000011 00000000 00000000 00000000 | 3
+3.2 | 00000100 00000000 00000000 00000000 | 4
+3.2 | 01000010 00000000 00000000 00000000 | 66
+3.2 | 01011111 00000000 00000000 00000000 | 95
+4   | 01100011                            | 'c'
+5.1 | 00001101 00000000 00000000 00000000 | 13
 5.2 | 01000011 01100101 01101001 01110010 | "Ceir"
+5.2 | 01100001 00100000 01110000 01110101 | "a pu"
+5.2 | 01110010 01101001 01101110 01101000 | "rinh"
 5.2 | 01100001                            | "a"
-6   | 00000001                            | True
-7   | 00000101 00000000 00000000 00000000 | 5
-7   | 00011001 00000000 00000000 00000000 | 25
+6.1 | 00000101 00000000 00000000 00000000 | 5
+6.2 | 01000011 01100101 01101001 01110010 | "Ceir"
+6.2 | 01100001                            | "a"
+7   | 00000001                            | True
+8   | 00000101 00000000 00000000 00000000 | 5
+8   | 00011001 00000000 00000000 00000000 | 25
 
 01110010 01100001 00000001 000001
 01 00000000 00000000 00000000 00011001 00000000 00000000 00000000
@@ -159,14 +174,34 @@ X: 5, Y: 25
 
 <br/>
 
-3: `char` 01100011 | 'c'
+3: `int[]`
+```c#
+[PacketField] public int[] Ceiras;
+```
+3.1: `int` 00000011 00000000 00000000 00000000 | 3
+
+*Represents the size of the array
+
+3.2: `int[]`
+
+00000100 00000000 00000000 00000000 | 4
+
+01000010 00000000 00000000 00000000 | 66
+
+01011111 00000000 00000000 00000000 | 95
+
+*An sequence of integers, the array content
+
+<br/>
+
+4: `char` 01100011 | 'c'
 ```c#
 [PacketField] public char Prefix;
 ```
 
 <br/>
 
-4: `CeirinhaPacket`
+5: `CeirinhaPacket`
 ```c#
 [PacketField] public CeirinhaPacket Ceirinha;
 ```
@@ -177,33 +212,33 @@ X: 5, Y: 25
 [PacketField] public string Ceirinha;
 ```
 
-4.1: `int` 00001101 00000000 00000000 00000000 | 13
+5.1: `int` 00001101 00000000 00000000 00000000 | 13
 
 *As strings have no fixed length, an integer comes together to represent their size
 
-4.2: `string` 01000011 01100101 01101001 01110010 01100001 00100000 01110000 01110101 01110010 01101001 01101110 01101000 01100001 "Ceira purinha"
+5.2: `string` 01000011 01100101 01101001 01110010 01100001 00100000 01110000 01110101 01110010 01101001 01101110 01101000 01100001 "Ceira purinha"
 
 <br/>
 
-5: `serialized string`
+6: `serialized string`
 ```c#
 [PacketField] public string Name;
 ```
 
-5.1: `int` 00000101 00000000 00000000 00000000 | 5
+6.1: `int` 00000101 00000000 00000000 00000000 | 5
 
-5.2: `string` 01000011 01100101 01101001 01110010 01100001 | "Ceira"
+6.2: `string` 01000011 01100101 01101001 01110010 01100001 | "Ceira"
 
 <br/>
 
-6: `bool` 00000001 | True
+7: `bool` 00000001 | True
 ```c#
 [PacketField] public bool IsWorking;
 ```
 
 *Booleans can be 00000000 (False) or 00000001 (True), they represent a byte so as not to interfere with the reading of the packet.
 
-7: `Vector2`
+8: `Vector2`
 ```c#
 public struct Vector2
 {

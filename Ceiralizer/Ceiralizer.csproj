@@ -4,6 +4,12 @@
         <TargetFramework>net6.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <Title>Ceiralizer</Title>
+        <Authors>lllggghhhaaa</Authors>
+        <Description>Library to serialize and deserialize packets to bytes </Description>
+        <PackageLicenseUrl>https://licenses.nuget.org/Apache-2.0</PackageLicenseUrl>
+        <RepositoryUrl>https://github.com/lllggghhhaaa/Ceiralizer</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
     </PropertyGroup>
 
 </Project>

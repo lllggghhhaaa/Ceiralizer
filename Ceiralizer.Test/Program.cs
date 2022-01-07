@@ -48,6 +48,7 @@ List<byte> data = PacketSerializer.Serialize(new CeiraPacket
 {
     Op = 2,
     Value = 255,
+    Ceiras = new[] { 4, 66, 95 },
     Garbage = "Lixo",
     Prefix = 'c',
     Ceirinha = new CeirinhaPacket
@@ -63,6 +64,10 @@ CeiraPacket packet = PacketSerializer.Deserialize<CeiraPacket>(data);
 
 Console.WriteLine(packet.Op);
 Console.WriteLine(packet.Value);
+
+foreach (int ceira in packet.Ceiras) Console.Write($" {ceira} ");
+Console.WriteLine();
+
 Console.WriteLine(packet.Prefix);
 Console.WriteLine(packet.Ceirinha.Ceirinha);
 Console.WriteLine(packet.Name);
