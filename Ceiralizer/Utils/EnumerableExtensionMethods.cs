@@ -20,7 +20,7 @@ public static class EnumerableExtensionMethods
     {
         IEnumerable<T> enumerable = arr as T[] ?? arr.ToArray();
         
-        if (count == null) { count = enumerable.Count() - offset; }
+        if (count == null) count = enumerable.Count() - offset;
         return new ArraySegment<T>(enumerable.ToArray(), offset, count.Value);
     }
 }

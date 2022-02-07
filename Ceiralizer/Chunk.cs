@@ -19,16 +19,14 @@ namespace Ceiralizer;
 
 public class Chunk
 {
-    public List<byte> Data = new();
+    public List<byte> Data;
     public int Position;
 
-    public Chunk(List<byte> data)
-    {
-        Data = data;
-    }
+    public Chunk(byte[] data) => Data = new List<byte>(data);
 
-    public bool ReadBool()
-        => ReadByte() > 0;
+    public Chunk(List<byte> data) => Data = data;
+
+    public bool ReadBool() => ReadByte() > 0;
 
     public byte ReadByte()
     {
