@@ -22,11 +22,21 @@ public class Chunk
     public List<byte> Data;
     public int Position;
 
+    
     public Chunk(byte[] data) => Data = new List<byte>(data);
-
     public Chunk(List<byte> data) => Data = data;
 
+    
     public bool ReadBool() => ReadByte() > 0;
+
+    public void Write(bool value, int? pos = null)
+    {
+        byte data = BitConverter.GetBytes(value)[0];
+
+        if (pos is null) Data.Add(data);
+        else Data.Insert(pos.Value, data);
+    }
+    
 
     public byte ReadByte()
     {
@@ -36,6 +46,13 @@ public class Chunk
         return segment;
     }
 
+    public void Write(byte value, int? pos = null)
+    {
+        if (pos is null) Data.Add(value);
+        else Data.Insert(pos.Value, value);
+    }
+    
+
     public sbyte ReadSByte()
     {
         sbyte segment = (sbyte) Data[Position];
@@ -43,6 +60,13 @@ public class Chunk
 
         return segment;
     }
+
+    public void Write(sbyte value, int? pos = null)
+    {
+        if (pos is null) Data.Add((byte) value);
+        else Data.Insert(pos.Value, (byte) value);
+    }
+    
 
     public short ReadShort()
     {
@@ -52,6 +76,13 @@ public class Chunk
         return BitConverter.ToInt16(segment);
     }
 
+    public void Write(short value, int? pos = null)
+    {
+        if (pos is null) Data.AddRange(BitConverter.GetBytes(value));
+        else Data.InsertRange(pos.Value, BitConverter.GetBytes(value));
+    }
+    
+
     public ushort ReadUShort()
     {
         ArraySegment<byte> segment = Data.GetSegment(Position, 2);
@@ -59,6 +90,13 @@ public class Chunk
 
         return BitConverter.ToUInt16(segment);
     }
+
+    public void Write(ushort value, int? pos = null)
+    {
+        if (pos is null) Data.AddRange(BitConverter.GetBytes(value));
+        else Data.InsertRange(pos.Value, BitConverter.GetBytes(value));
+    }
+    
     
     public int ReadInt()
     {
@@ -68,6 +106,13 @@ public class Chunk
         return BitConverter.ToInt32(segment);
     }
     
+    public void Write(int value, int? pos = null)
+    {
+        if (pos is null) Data.AddRange(BitConverter.GetBytes(value));
+        else Data.InsertRange(pos.Value, BitConverter.GetBytes(value));
+    }
+    
+    
     public uint ReadUInt()
     {
         ArraySegment<byte> segment = Data.GetSegment(Position, 4);
@@ -75,6 +120,13 @@ public class Chunk
 
         return BitConverter.ToUInt32(segment);
     }
+    
+    public void Write(uint value, int? pos = null)
+    {
+        if (pos is null) Data.AddRange(BitConverter.GetBytes(value));
+        else Data.InsertRange(pos.Value, BitConverter.GetBytes(value));
+    }
+    
 
     public long ReadLong()
     {
@@ -84,6 +136,13 @@ public class Chunk
         return BitConverter.ToInt64(segment);
     }
     
+    public void Write(long value, int? pos = null)
+    {
+        if (pos is null) Data.AddRange(BitConverter.GetBytes(value));
+        else Data.InsertRange(pos.Value, BitConverter.GetBytes(value));
+    }
+    
+    
     public ulong ReadULong()
     {
         ArraySegment<byte> segment = Data.GetSegment(Position, 8);
@@ -91,6 +150,13 @@ public class Chunk
 
         return BitConverter.ToUInt64(segment);
     }
+    
+    public void Write(ulong value, int? pos = null)
+    {
+        if (pos is null) Data.AddRange(BitConverter.GetBytes(value));
+        else Data.InsertRange(pos.Value, BitConverter.GetBytes(value));
+    }
+    
     
     public float ReadFloat()
     {
@@ -100,6 +166,13 @@ public class Chunk
         return BitConverter.ToSingle(segment);
     }
     
+    public void Write(float value, int? pos = null)
+    {
+        if (pos is null) Data.AddRange(BitConverter.GetBytes(value));
+        else Data.InsertRange(pos.Value, BitConverter.GetBytes(value));
+    }
+    
+    
     public double ReadDouble()
     {
         ArraySegment<byte> segment = Data.GetSegment(Position, 8);
@@ -107,6 +180,13 @@ public class Chunk
 
         return BitConverter.ToDouble(segment);
     }
+    
+    public void Write(double value, int? pos = null)
+    {
+        if (pos is null) Data.AddRange(BitConverter.GetBytes(value));
+        else Data.InsertRange(pos.Value, BitConverter.GetBytes(value));
+    }
+    
 
     public char ReadChar(Encoding encoder)
     {
@@ -117,6 +197,13 @@ public class Chunk
 
         return encoder.GetString(segment).First();
     }
+    
+    public void Write(char value, Encoding encoder, int? pos = null)
+    {
+        if (pos is null) Data.AddRange(encoder.GetBytes(value.ToString()));
+        else Data.InsertRange(pos.Value, encoder.GetBytes(value.ToString()));
+    }
+    
 
     public string ReadString(Encoding encoder, int lenght)
     {
@@ -127,6 +214,13 @@ public class Chunk
 
         return encoder.GetString(segment);
     }
+    
+    public void Write(string value, Encoding encoder, int? pos = null)
+    {
+        if (pos is null) Data.AddRange(encoder.GetBytes(value));
+        else Data.InsertRange(pos.Value, encoder.GetBytes(value));
+    }
+    
 
     public ArraySegment<byte> ReadSegment(int lenght)
     {
@@ -135,4 +229,13 @@ public class Chunk
 
         return segment;
     }
+
+    public void Write(byte[] value, int? pos)
+    {
+        if (pos is null) Data.AddRange(value);
+        else Data.InsertRange(pos.Value, value);
+    }
+    
+
+    public void ResetPosition(int pos = 0) => Position = pos;
 }
