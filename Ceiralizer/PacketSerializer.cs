@@ -19,8 +19,17 @@ namespace Ceiralizer;
 
 public static class PacketSerializer
 {
+    /// <summary>
+    /// Encoder used to serialize and deserialize strings and chars
+    /// </summary>
     public static Encoding StringEncoder = Encoding.Unicode;
     
+    /// <summary>
+    /// Serialize an class to byte list
+    /// </summary>
+    /// <param name="packet">Packet instance to serialize</param>
+    /// <typeparam name="T">Packet generic type</typeparam>
+    /// <returns>byte enumerable with the packet content</returns>
     public static IEnumerable<byte> Serialize<T>(T packet) where T : IPacket, new() => RawSerialize(packet);
 
     private static IEnumerable<byte> RawSerialize(object packet)
@@ -49,6 +58,12 @@ public static class PacketSerializer
         return data;
     }
 
+    /// <summary>
+    /// Deserialize an byte list to an class instance
+    /// </summary>
+    /// <param name="data">Packet data</param>
+    /// <typeparam name="T">Packet generic type</typeparam>
+    /// <returns>Packet instance of the byte list data</returns>
     public static T Deserialize<T>(IEnumerable<byte> data) where T : IPacket, new()
     {
         byte[] enumerable = data as byte[] ?? data.ToArray();
