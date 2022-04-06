@@ -17,11 +17,12 @@ using Ceiralizer.Utils;
 
 namespace Ceiralizer;
 
-public class Chunk
+public class Chunk : IDisposable
 {
-    public readonly List<byte> Data;
+    public List<byte> Data;
     public int Position;
 
+    private bool _disposed = false;
 
     /// <summary>
     /// Initialize a empty chunk
@@ -386,4 +387,17 @@ public class Chunk
     /// </summary>
     /// <param name="pos">Start position</param>
     public void ResetPosition(int pos = 0) => Position = pos;
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+    
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing) Data = null!;
+
+        _disposed = true;
+    }
 }
