@@ -38,6 +38,10 @@ public class Chunk : IDisposable
     /// </summary>
     /// <param name="data">byte list with data</param>
     public Chunk(List<byte> data) => Data = data;
+    
+    public bool CanRead() => Position < Data.Count;
+    
+    public byte[] ToArray() => Data.ToArray();
 
     
     /// <summary>
