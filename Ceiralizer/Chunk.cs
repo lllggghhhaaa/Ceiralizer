@@ -22,7 +22,7 @@ public class Chunk : IDisposable
     public List<byte> Data;
     public int Position;
 
-    private bool _disposed = false;
+    private bool _disposed;
 
     /// <summary>
     /// Initialize a empty chunk
@@ -39,9 +39,23 @@ public class Chunk : IDisposable
     /// <param name="data">byte list with data</param>
     public Chunk(List<byte> data) => Data = data;
     
-    public bool CanRead() => Position < Data.Count;
+    /// <summary>
+    /// Check if is possible read more data
+    /// </summary>
+    /// <returns>Position + len is less than Count</returns>
+    public bool CanRead(int len = 0) => Position + len < Data.Count;
     
+    /// <summary>
+    /// Get the data as an array
+    /// </summary>
+    /// <returns></returns>
     public byte[] ToArray() => Data.ToArray();
+    
+    /// <summary>
+    /// Get remain lenght
+    /// </summary>
+    /// <returns>Count - Position</returns>
+    public int RemainLenght() => Data.Count - Position;
 
     
     /// <summary>
