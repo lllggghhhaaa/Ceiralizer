@@ -276,8 +276,8 @@ public class Chunk : IDisposable
     /// <returns>float in this position</returns>
     public float ReadFloat()
     {
-        ArraySegment<byte> segment = Data.GetSegment(Position, 8);
-        Position += 8;
+        ArraySegment<byte> segment = Data.GetSegment(Position, 4);
+        Position += 4;
 
         return BitConverter.ToSingle(segment);
     }
