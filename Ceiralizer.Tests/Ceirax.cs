@@ -1,4 +1,4 @@
-namespace Ceiralizer.Test;
+namespace Ceiralizer.Tests;
 
 public class Ceirax : ISerializable
 {
