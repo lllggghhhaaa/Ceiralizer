@@ -33,6 +33,8 @@ public struct CeiraPacket : IPacket
     [PacketField] public bool IsWorking;
 
     [PacketField] public Vector2 Position;
+
+    [PacketField] public Ceirax Ceirax;
 }
 
 public struct CeirinhaPacket : IPacket

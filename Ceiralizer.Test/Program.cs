@@ -57,7 +57,13 @@ List<byte> data = PacketSerializer.Serialize(new CeiraPacket
     },
     Name = "Ceira",
     IsWorking = true,
-    Position = new Vector2(5, 25)
+    Position = new Vector2(5, 25),
+    Ceirax = new Ceirax
+    {
+        Title = "In The End, We All Felt Like We Ate Too Much",
+        Description = "North America should be called Russia since people are always moving so fast. Gralitica Cemeteries are just garbage dumps filled with humans I'm still upset that Tie Domi didn't name his child Tyson ",
+        Price = 58329.32f
+    }
 }).ToList();
 
 CeiraPacket packet = PacketSerializer.Deserialize<CeiraPacket>(data);
@@ -73,6 +79,10 @@ Console.WriteLine(packet.Ceirinha.Ceirinha);
 Console.WriteLine(packet.Name);
 Console.WriteLine(packet.IsWorking);
 Console.WriteLine($"X: {packet.Position.X}, Y: {packet.Position.Y}");
+Console.WriteLine();
+Console.WriteLine(packet.Ceirax.Title);
+Console.WriteLine(packet.Ceirax.Description);
+Console.WriteLine(packet.Ceirax.Price);
 
 Console.WriteLine();
 
