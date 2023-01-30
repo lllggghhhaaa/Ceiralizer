@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net6.0</TargetFramework>
+        <TargetFramework>netstandard2.1</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <Title>Ceiralizer</Title>
@@ -11,6 +11,7 @@
         <RepositoryUrl>https://github.com/lllggghhhaaa/Ceiralizer</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
         <PackageVersion>1.0.5</PackageVersion>
+        <LangVersion>preview</LangVersion>
     </PropertyGroup>
 
 </Project>
