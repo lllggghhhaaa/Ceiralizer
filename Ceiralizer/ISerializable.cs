@@ -4,5 +4,5 @@ public interface ISerializable
 {
     public byte[] Serialize();
 
-    public object Deserialize(Chunk data);
+    public void Deserialize(Chunk data);
 }

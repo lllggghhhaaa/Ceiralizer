@@ -153,7 +153,8 @@ public static class PacketSerializer
                     object o = Activator.CreateInstance(type.GetElementType()!)!;
                     ISerializable serializable = (o as ISerializable)!;
 
-                    values[i] = serializable.Deserialize(data);
+                    serializable.Deserialize(data);
+                    values[i] = o;
                 }
             else
                 for (int i = 0; i < length; i++)
@@ -164,15 +165,16 @@ public static class PacketSerializer
             
             return newArray;
         }
-        
-        if (!TypeSerializer.Deserializers.ContainsKey(type)) return null;
 
         if (typeof(ISerializable).IsAssignableFrom(type))
         {
-            object o = Activator.CreateInstance(type.GetElementType()!)!;
-            return (o as ISerializable)!.Deserialize(data);
+            object o = Activator.CreateInstance(type)!;
+            (o as ISerializable)!.Deserialize(data);
+
+            return o;
         }
         
+        if (!TypeSerializer.Deserializers.ContainsKey(type)) return null;
         return TypeSerializer.Deserializers[type].Invoke(data);
     }
 }
