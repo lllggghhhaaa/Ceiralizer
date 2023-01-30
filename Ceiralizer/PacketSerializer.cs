@@ -110,21 +110,29 @@ public static class PacketSerializer
 
     private static byte[] GetDataFromField(object? value, Type type)
     {
-        if (value is null) return new byte[] {0};
+        if (value is null) return new byte[] { 0 };
 
         if (type.IsArray && TypeSerializer.Serializers.ContainsKey(type.GetElementType()!))
         {
             Array? values = value as Array;
 
-            if (values is null) return new byte[] {0};
+            if (values is null) return new byte[] { 0 };
 
             List<byte> data = new List<byte>(BitConverter.GetBytes(values.Length));
+
             
-            foreach (object o in values) data.AddRange(TypeSerializer.Serializers[type.GetElementType()!].Invoke(o));
-            
+            if (typeof(ISerializable).IsAssignableFrom(type))
+                foreach (object o in values)
+                    data.AddRange((o as ISerializable)!.Serialize());
+            else
+                foreach (object o in values)
+                    data.AddRange(TypeSerializer.Serializers[type.GetElementType()!].Invoke(o));
+
             return data.ToArray();
         }
 
+        if (typeof(ISerializable).IsAssignableFrom(type))
+            return (value as ISerializable)!.Serialize();
         if (!TypeSerializer.Serializers.ContainsKey(type))
             return Array.Empty<byte>();
         
@@ -139,8 +147,17 @@ public static class PacketSerializer
 
             object[] values = new object[length];
 
-            for (int i = 0; i < length; i++)
-                values[i] = TypeSerializer.Deserializers[type.GetElementType()!].Invoke(data) ?? Array.Empty<byte>();
+            if (typeof(ISerializable).IsAssignableFrom(type))
+                for (int i = 0; i < length; i++)
+                {
+                    object o = Activator.CreateInstance(type.GetElementType()!)!;
+                    ISerializable serializable = (o as ISerializable)!;
+
+                    values[i] = serializable.Deserialize(data);
+                }
+            else
+                for (int i = 0; i < length; i++)
+                    values[i] = TypeSerializer.Deserializers[type.GetElementType()!].Invoke(data) ?? Array.Empty<byte>();
 
             Array newArray = Array.CreateInstance(type.GetElementType()!, length);
             Array.Copy(values, newArray, values.Length);
@@ -150,6 +167,12 @@ public static class PacketSerializer
         
         if (!TypeSerializer.Deserializers.ContainsKey(type)) return null;
 
+        if (typeof(ISerializable).IsAssignableFrom(type))
+        {
+            object o = Activator.CreateInstance(type.GetElementType()!)!;
+            return (o as ISerializable)!.Deserialize(data);
+        }
+        
         return TypeSerializer.Deserializers[type].Invoke(data);
     }
 }
