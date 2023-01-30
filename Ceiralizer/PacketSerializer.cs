@@ -49,10 +49,9 @@ public static class PacketSerializer
             object? value = field.GetValue(packet);
             if (value is null) continue;
 
-            if (typeof(IPacket).IsAssignableFrom(field.FieldType))
-                data.AddRange(RawSerialize(value));
-            else
-                data.AddRange(GetDataFromField(value, field.FieldType));
+            data.AddRange(typeof(IPacket).IsAssignableFrom(field.FieldType)
+                ? RawSerialize(value)
+                : GetDataFromField(value, field.FieldType));
         }
 
         return data;
@@ -81,12 +80,7 @@ public static class PacketSerializer
 
             Type type = field.FieldType;
 
-            object? value;
-
-            if (typeof(IPacket).IsAssignableFrom(field.FieldType))
-                value = RawDeserialize(chunk, type);
-            else
-                value = ValueFromByteArray(chunk, type);
+            object? value = typeof(IPacket).IsAssignableFrom(field.FieldType) ? RawDeserialize(chunk, type) : ValueFromByteArray(chunk, type);
 
             field.SetValue(packet, value);
         }
