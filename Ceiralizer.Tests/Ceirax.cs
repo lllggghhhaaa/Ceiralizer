@@ -1,3 +1,5 @@
+using Ceiralizer.Utils;
+
 namespace Ceiralizer.Tests;
 
 public class Ceirax : ISerializable
@@ -6,21 +8,17 @@ public class Ceirax : ISerializable
     public string Description = "";
     public float Price;
 
-    public byte[] Serialize()
+    public void Serialize(ChunkWriter writer)
     {
-        List<byte> data = new List<byte>();
-
-        data.AddRange(TypeSerializer.Serializers[typeof(string)].Invoke(Title));
-        data.AddRange(TypeSerializer.Serializers[typeof(string)].Invoke(Description));
-        data.AddRange(TypeSerializer.Serializers[typeof(float)].Invoke(Price));
-        
-        return data.ToArray();
+        TypeSerializer.Serializers[typeof(string)].Invoke(Title, writer);
+        TypeSerializer.Serializers[typeof(string)].Invoke(Description, writer);
+        TypeSerializer.Serializers[typeof(float)].Invoke(Price, writer);
     }
 
-    public void Deserialize(Chunk data)
+    public void Deserialize(ChunkReader reader)
     {
-        Title = (TypeSerializer.Deserializers[typeof(string)].Invoke(data) as string)!;
-        Description = (TypeSerializer.Deserializers[typeof(string)].Invoke(data) as string)!;
-        Price = (float) TypeSerializer.Deserializers[typeof(float)].Invoke(data)!;
+        Title = (TypeSerializer.Deserializers[typeof(string)].Invoke(reader) as string)!;
+        Description = (TypeSerializer.Deserializers[typeof(string)].Invoke(reader) as string)!;
+        Price = (float) TypeSerializer.Deserializers[typeof(float)].Invoke(reader)!;
     }
 }

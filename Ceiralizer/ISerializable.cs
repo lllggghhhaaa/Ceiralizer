@@ -1,8 +1,10 @@
+using Ceiralizer.Utils;
+
 namespace Ceiralizer;
 
 public interface ISerializable
 {
-    public byte[] Serialize();
+    public void Serialize(ChunkWriter writer);
 
-    public void Deserialize(Chunk data);
+    public void Deserialize(ChunkReader reader);
 }

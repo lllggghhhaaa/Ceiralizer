@@ -1,9 +1,17 @@
 using System.Text;
+using Xunit.Abstractions;
 
 namespace Ceiralizer.Tests;
 
 public class CeiralizerTests
 {
+    private readonly ITestOutputHelper _testOutputHelper;
+
+    public CeiralizerTests(ITestOutputHelper testOutputHelper)
+    {
+        _testOutputHelper = testOutputHelper;
+    }
+
     private const string Title = "In The End, We All Felt Like We Ate Too Much";
 
     private const string Description =
@@ -16,31 +24,24 @@ public class CeiralizerTests
         PacketSerializer.StringEncoder = Encoding.UTF8;
 
         // Add custom class to serialize
-        TypeSerializer.Serializers.Add(typeof(Vector2), value =>
+        TypeSerializer.Serializers.Add(typeof(Vector2), (value, writer) =>
         {
-            List<byte> bytes = new List<byte>();
-
             Vector2 pos = (Vector2) value;
 
-            byte[] x = TypeSerializer.Serializers[typeof(int)].Invoke(pos.X);
-            byte[] y = TypeSerializer.Serializers[typeof(int)].Invoke(pos.Y);
-
-            bytes.AddRange(x);
-            bytes.AddRange(y);
-
-            return bytes.ToArray();
+            writer.Write(pos.X);
+            writer.Write(pos.Y);
         });
 
         // And also adding deserializer
-        TypeSerializer.Deserializers.Add(typeof(Vector2), data =>
+        TypeSerializer.Deserializers.Add(typeof(Vector2), reader =>
         {
-            int x = data.ReadInt();
-            int y = data.ReadInt();
+            int x = reader.ReadInt();
+            int y = reader.ReadInt();
 
             return new Vector2(x, y);
         });
 
-        List<byte> data = PacketSerializer.Serialize(new CeiraPacket
+        var data = PacketSerializer.Serialize(new CeiraPacket
         {
             Op = 2,
             Value = 255,
@@ -60,7 +61,7 @@ public class CeiralizerTests
                 Description = Description,
                 Price = 58329.32f
             }
-        }).ToList();
+        });
 
         CeiraPacket packet = PacketSerializer.Deserialize<CeiraPacket>(data);
         

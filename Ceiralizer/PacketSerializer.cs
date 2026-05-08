@@ -1,5 +1,7 @@
+using System.Buffers;
 using System.Reflection;
 using System.Text;
+using Ceiralizer.Utils;
 
 namespace Ceiralizer;
 
@@ -16,13 +18,12 @@ public static class PacketSerializer
     /// <param name="packet">Packet instance to serialize</param>
     /// <typeparam name="T">Packet generic type</typeparam>
     /// <returns>byte enumerable with the packet content</returns>
-    public static IEnumerable<byte> Serialize<T>(T packet) where T : IPacket, new() => RawSerialize(packet);
+    public static byte[] Serialize<T>(T packet) where T : IPacket, new() 
+        => RawSerialize(packet, new ChunkWriter(new ArrayBufferWriter<byte>()));
 
-    private static IEnumerable<byte> RawSerialize(object packet)
+    private static byte[] RawSerialize(object packet, ChunkWriter writer)
     {
         if (packet is null) throw new ArgumentNullException(nameof(packet), "Packet is null");
-
-        List<byte> data = new List<byte>();
 
         Type packetType = packet.GetType();
         FieldInfo[] fields = packetType.GetFields();
@@ -33,14 +34,17 @@ public static class PacketSerializer
             if (attribute is null) continue;
 
             object? value = field.GetValue(packet);
-            if (value is null) continue;
+            if (value is null)
+                throw new InvalidOperationException(
+                    $"Field '{packetType.Name}.{field.Name}' is marked with PacketFieldAttribute but its value is null.");
 
-            data.AddRange(typeof(IPacket).IsAssignableFrom(field.FieldType)
-                ? RawSerialize(value)
-                : GetDataFromField(value, field.FieldType));
+            if (typeof(IPacket).IsAssignableFrom(field.FieldType))
+                RawSerialize(value, writer);
+            else
+                WriteDataFromField(value, field.FieldType, writer);
         }
 
-        return data;
+        return writer.GetWrittenData();
     }
 
     /// <summary>
@@ -53,7 +57,7 @@ public static class PacketSerializer
     {
         byte[] enumerable = data as byte[] ?? data.ToArray();
         
-        Chunk chunk = new Chunk(enumerable.ToList());
+        ChunkReader reader = new ChunkReader(enumerable);
 
         object packet = new T();
         Type packetType = typeof(T);
@@ -66,7 +70,7 @@ public static class PacketSerializer
 
             Type type = field.FieldType;
 
-            object? value = typeof(IPacket).IsAssignableFrom(field.FieldType) ? RawDeserialize(chunk, type) : ValueFromByteArray(chunk, type);
+            object? value = typeof(IPacket).IsAssignableFrom(field.FieldType) ? RawDeserialize(reader, type) : ValueFromByteArray(reader, type);
 
             field.SetValue(packet, value);
         }
@@ -74,7 +78,7 @@ public static class PacketSerializer
         return (T) packet;
     }
 
-    private static object? RawDeserialize(Chunk chunk, Type packetType)
+    private static object? RawDeserialize(ChunkReader reader, Type packetType)
     {
         object? packet = Activator.CreateInstance(packetType);
         FieldInfo[] fields = packetType.GetFields();
@@ -86,7 +90,7 @@ public static class PacketSerializer
 
             Type type = field.FieldType;
 
-            object? value = ValueFromByteArray(chunk, type);
+            object? value = ValueFromByteArray(reader, type);
 
             field.SetValue(packet, value);
         }
@@ -94,73 +98,88 @@ public static class PacketSerializer
         return packet;
     }
 
-    private static byte[] GetDataFromField(object? value, Type type)
+    private static void WriteDataFromField(object? value, Type type, ChunkWriter writer)
     {
-        if (value is null) return new byte[] { 0 };
+        if (value is null)
+            return;
 
-        if (type.IsArray && TypeSerializer.Serializers.ContainsKey(type.GetElementType()!))
+        if (type.IsArray)
         {
-            Array? values = value as Array;
+            Type elementType = type.GetElementType()!;
 
-            if (values is null) return new byte[] { 0 };
+            if (value is not Array values)
+                return;
 
-            List<byte> data = new List<byte>(BitConverter.GetBytes(values.Length));
+            writer.Write(values.Length);
 
-            
-            if (typeof(ISerializable).IsAssignableFrom(type))
-                foreach (object o in values)
-                    data.AddRange((o as ISerializable)!.Serialize());
-            else
-                foreach (object o in values)
-                    data.AddRange(TypeSerializer.Serializers[type.GetElementType()!].Invoke(o));
+            if (typeof(ISerializable).IsAssignableFrom(elementType))
+            {
+                foreach (object item in values)
+                    ((ISerializable)item).Serialize(writer);
 
-            return data.ToArray();
+                return;
+            }
+
+            if (!TypeSerializer.Serializers.TryGetValue(elementType, out Action<object, ChunkWriter>? serializer))
+                return;
+
+            foreach (object item in values)
+                serializer(item, writer);
+
+            return;
         }
 
         if (typeof(ISerializable).IsAssignableFrom(type))
-            return (value as ISerializable)!.Serialize();
-        if (!TypeSerializer.Serializers.ContainsKey(type))
-            return Array.Empty<byte>();
-        
-        return TypeSerializer.Serializers[type].Invoke(value);
+        {
+            ((ISerializable)value).Serialize(writer);
+            return;
+        }
+
+        if (TypeSerializer.Serializers.TryGetValue(type, out Action<object, ChunkWriter>? valueSerializer))
+            valueSerializer(value, writer);
     }
 
-    private static object? ValueFromByteArray(Chunk data, Type type)
+    private static object? ValueFromByteArray(ChunkReader reader, Type type)
     {
-        if (type.IsArray && TypeSerializer.Deserializers.ContainsKey(type.GetElementType()!))
+        if (type.IsArray)
         {
-            int length = data.ReadInt();
+            Type elementType = type.GetElementType()!;
+            int length = reader.ReadInt();
 
-            object[] values = new object[length];
+            Array values = Array.CreateInstance(elementType, length);
 
-            if (typeof(ISerializable).IsAssignableFrom(type))
+            if (typeof(ISerializable).IsAssignableFrom(elementType))
+            {
                 for (int i = 0; i < length; i++)
                 {
-                    object o = Activator.CreateInstance(type.GetElementType()!)!;
-                    ISerializable serializable = (o as ISerializable)!;
-
-                    serializable.Deserialize(data);
-                    values[i] = o;
+                    object item = Activator.CreateInstance(elementType)!;
+                    ((ISerializable)item).Deserialize(reader);
+                    values.SetValue(item, i);
                 }
-            else
-                for (int i = 0; i < length; i++)
-                    values[i] = TypeSerializer.Deserializers[type.GetElementType()!].Invoke(data) ?? Array.Empty<byte>();
 
-            Array newArray = Array.CreateInstance(type.GetElementType()!, length);
-            Array.Copy(values, newArray, values.Length);
-            
-            return newArray;
+                return values;
+            }
+
+            if (!TypeSerializer.Deserializers.TryGetValue(elementType, out Func<ChunkReader, object?>? deserializer))
+                return null;
+
+            for (int i = 0; i < length; i++)
+                values.SetValue(deserializer(reader), i);
+
+            return values;
         }
 
         if (typeof(ISerializable).IsAssignableFrom(type))
         {
             object o = Activator.CreateInstance(type)!;
-            (o as ISerializable)!.Deserialize(data);
+            (o as ISerializable)!.Deserialize(reader);
 
             return o;
         }
-        
-        if (!TypeSerializer.Deserializers.ContainsKey(type)) return null;
-        return TypeSerializer.Deserializers[type].Invoke(data);
+
+        if (!TypeSerializer.Deserializers.TryGetValue(type, out Func<ChunkReader, object?>? valueDeserializer))
+            return null;
+
+        return valueDeserializer(reader);
     }
 }

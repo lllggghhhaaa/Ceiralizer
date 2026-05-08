@@ -1,35 +1,35 @@
-﻿namespace Ceiralizer;
+﻿using Ceiralizer.Utils;
+
+namespace Ceiralizer;
 
 public static class TypeSerializer
 {
-    public static Dictionary<Type, Func<object, byte[]>> Serializers = new()
+    public static readonly Dictionary<Type, Action<object, ChunkWriter>> Serializers = new()
     {
-        { typeof(bool), value => (bool)value ? new byte[] { 1 } : new byte[] { 0 } },
-        { typeof(byte), value => new[] { (byte)value } },
-        { typeof(sbyte), value => new[] { (byte)value } },
-        { typeof(char), value => PacketSerializer.StringEncoder.GetBytes(((char)value).ToString()) },
-        { typeof(double), value => BitConverter.GetBytes((double)value) },
-        { typeof(float), value => BitConverter.GetBytes((float)value) },
-        { typeof(int), value => BitConverter.GetBytes((int)value) },
-        { typeof(uint), value => BitConverter.GetBytes((uint)value) },
-        { typeof(long), value => BitConverter.GetBytes((long)value) },
-        { typeof(ulong), value => BitConverter.GetBytes((ulong)value) },
-        { typeof(short), value => BitConverter.GetBytes((short)value) },
-        { typeof(ushort), value => BitConverter.GetBytes((ushort)value) },
+        { typeof(bool), (value, writer) => writer.Write((bool)value) },
+        { typeof(byte), (value, writer) => writer.Write((byte)value) },
+        { typeof(sbyte), (value, writer) => writer.Write((sbyte)value) },
+        { typeof(char), (value, writer) => writer.Write((char)value, PacketSerializer.StringEncoder) },
+        { typeof(double), (value, writer) => writer.Write((double)value) },
+        { typeof(float), (value, writer) => writer.Write((float)value) },
+        { typeof(int), (value, writer) => writer.Write((int)value) },
+        { typeof(uint), (value, writer) => writer.Write((uint)value) },
+        { typeof(long), (value, writer) => writer.Write((long)value) },
+        { typeof(ulong), (value, writer) => writer.Write((ulong)value) },
+        { typeof(short), (value, writer) => writer.Write((short)value) },
+        { typeof(ushort), (value, writer) => writer.Write((ushort)value) },
         {
-            typeof(string), value =>
+            typeof(string), (value, writer) =>
             {
-                string data = (string)value;
-                List<byte> header =
-                    new List<byte>(BitConverter.GetBytes(PacketSerializer.StringEncoder.GetByteCount(data)));
-                header.AddRange(PacketSerializer.StringEncoder.GetBytes(data));
-
-                return header.ToArray();
+                var data = (string)value;
+                var header = PacketSerializer.StringEncoder.GetByteCount(data);
+                writer.Write(header);
+                writer.Write(data, PacketSerializer.StringEncoder);
             }
         }
     };
-
-    public static Dictionary<Type, Func<Chunk, object?>> Deserializers = new()
+    
+    public static readonly Dictionary<Type, Func<ChunkReader, object?>> Deserializers = new()
     {
         { typeof(bool), data => data.ReadBool() },
         { typeof(byte), data => data.ReadByte() },
