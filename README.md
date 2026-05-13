@@ -38,10 +38,22 @@ public struct CeirinhaPacket : IPacket
 }
 ```
 
-public struct Vector2
+public struct Vector2 : ISerializable
 {
     public int X;
     public int Y;
+
+    public void Serialize(ChunkWriter writer)
+    {
+        Serializers.SerializeInt(X, writer);
+        Serializers.SerializeInt(Y, writer);
+    }
+
+    public void Deserialize(ChunkReader reader)
+    {
+        X = Serializers.DeserializeInt(reader);
+        Y = Serializers.DeserializeInt(reader);
+    }
 }
 ```
 
@@ -50,25 +62,8 @@ public struct Vector2
 using System.Text;
 using Ceiralizer;
 
-// Default is Encoding.Unicode. // Use UTF-8 to reduce the size for most text data.
-PacketSerializer.StringEncoder = Encoding.UTF8;
-
-// Register a custom serializer.
-TypeSerializer.Serializers.Add(typeof(Vector2), (value, writer) =>
-{
-    var pos = (Vector2)value;
-    writer.Write(pos.X);
-    writer.Write(pos.Y);
-});
-
-// And also adding deserializer
-TypeSerializer.Deserializers.Add(typeof(Vector2), reader =>
-{
-    int x = reader.ReadInt();
-    int y = reader.ReadInt();
-
-    return new Vector2(x, y);
-});
+// Default is Encoding.Unicode. Use UTF-8 to reduce the size for most text data.
+CeiralizerConfig.StringEncoder = Encoding.UTF8;
 ```
 
 ### 3. Serialize & Deserialize
@@ -121,16 +116,16 @@ public class Ceirax : ISerializable
 
     public void Serialize(ChunkWriter writer)
     {
-        TypeSerializer.Serializers[typeof(string)].Invoke(Title, writer);
-        TypeSerializer.Serializers[typeof(string)].Invoke(Description, writer);
-        TypeSerializer.Serializers[typeof(float)].Invoke(Price, writer);
+        Serializers.SerializeString(Title, writer);
+        Serializers.SerializeString(Description, writer);
+        Serializers.SerializeFloat(Price, writer);
     }
 
     public void Deserialize(ChunkReader reader)
     {
-        Title = (string)TypeSerializer.Deserializers[typeof(string)].Invoke(reader)!;
-        Description = (string)TypeSerializer.Deserializers[typeof(string)].Invoke(reader)!;
-        Price = (float)TypeSerializer.Deserializers[typeof(float)].Invoke(reader)!;
+        Title = Serializers.DeserializeString(reader);
+        Description = Serializers.DeserializeString(reader);
+        Price = Serializers.DeserializeFloat(reader);
     }
 }
 ```

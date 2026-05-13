@@ -87,21 +87,20 @@ public class ChunkWriter(ArrayBufferWriter<byte> writer)
         span[0] = value ? (byte)1 : (byte)0;
         writer.Advance(sizeof(bool));
     }
-    
-    public void Write(char value, Encoding encoder)
-    {
-        Span<char> chars = stackalloc char[1] { value };
-        int size = encoder.GetByteCount(chars);
-        var span = writer.GetSpan(size);
-        var written = encoder.GetBytes(chars, span);
-        writer.Advance(written);
-    }
 
     public void Write(string value, Encoding encoder)
     {
         var size = encoder.GetByteCount(value);
         var span = writer.GetSpan(size);
         var written = encoder.GetBytes(value.AsSpan(), span);
+        writer.Advance(written);
+    }
+
+    public void Write(char value, Encoding encoder)
+    {
+        var size = encoder.GetByteCount([value]);
+        var span = writer.GetSpan(size);
+        var written = encoder.GetBytes([value], span);
         writer.Advance(written);
     }
 }

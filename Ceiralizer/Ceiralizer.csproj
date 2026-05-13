@@ -10,7 +10,7 @@
         <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
         <RepositoryUrl>https://github.com/lllggghhhaaa/Ceiralizer</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
-        <PackageVersion>2.0.0</PackageVersion>
+        <PackageVersion>3.0.0</PackageVersion>
         <LangVersion>preview</LangVersion>
         <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>

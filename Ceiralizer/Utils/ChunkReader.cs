@@ -45,17 +45,29 @@ public class ChunkReader
     public double ReadDouble() =>
         BitConverter.Int64BitsToDouble(BinaryPrimitives.ReadInt64LittleEndian(Consume(sizeof(double))));
 
-    public char ReadChar(Encoding encoder)
-    {
-        int size = encoder.GetByteCount(".");
-        var span = Consume(size);
-        Span<char> chars = stackalloc char[1];
-        encoder.GetChars(span, chars);
-        return chars[0];
-    }
-
     public string ReadString(Encoding encoder, int byteCount) =>
         encoder.GetString(Consume(byteCount));
+
+    public char ReadChar(Encoding encoder)
+    {
+        var b0 = Consume(1)[0];
+
+        var byteCount =
+            b0 < 0x80 ? 1 :
+            b0 < 0xE0 ? 2 :
+            b0 < 0xF0 ? 3 : 4;
+
+        Span<byte> bytes = stackalloc byte[byteCount];
+        bytes[0] = b0;
+
+        if (byteCount > 1)
+            Consume(byteCount - 1).CopyTo(bytes[1..]);
+
+        Span<char> chars = stackalloc char[2];
+        var count = Encoding.UTF8.GetChars(bytes, chars);
+
+        return count == 1 ? chars[0] : throw new InvalidOperationException("Char requires surrogate pair.");
+    }
 
     public ReadOnlySpan<byte> ReadSegment(int length) => Consume(length);
 

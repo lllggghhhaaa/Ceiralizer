@@ -1,11 +1,8 @@
 namespace Ceiralizer;
 
-public interface IPacket
-{
-    
-}
+public interface IPacket;
 
-public class PacketFieldAttribute : Attribute
-{
-    
-}
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+public class PacketFieldAttribute : Attribute;
+
+public interface ICustomSerializer<T>;
