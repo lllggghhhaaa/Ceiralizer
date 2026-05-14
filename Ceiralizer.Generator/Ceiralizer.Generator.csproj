@@ -5,10 +5,30 @@
         <Nullable>enable</Nullable>
         <LangVersion>preview</LangVersion>
         <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+        <IncludeBuildOutput>false</IncludeBuildOutput>
+        <Title>Ceiralizer.Generator</Title>
+        <Authors>lllggghhhaaa</Authors>
+        <Description>Library to serialize and deserialize packets to bytes</Description>
+        <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+        <RepositoryUrl>https://github.com/lllggghhhaaa/Ceiralizer</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PackageVersion>3.0.0</PackageVersion>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
 
     <ItemGroup>
+        <None Include="../README.md" Pack="true" PackagePath="" />
+    </ItemGroup>
+    
+    <ItemGroup>
       <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" />
+    </ItemGroup>
+    
+    <ItemGroup>
+        <None Include="$(OutputPath)$(AssemblyName).dll"
+              Pack="true" 
+              PackagePath="analyzers/dotnet/cs" 
+        />
     </ItemGroup>
 
 </Project>
