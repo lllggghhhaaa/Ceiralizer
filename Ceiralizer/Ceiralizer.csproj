@@ -7,7 +7,7 @@
         <Title>Ceiralizer</Title>
         <Authors>lllggghhhaaa</Authors>
         <Description>Library to serialize and deserialize packets to bytes</Description>
-        <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+        <PackageLicenseExpression>LGPL-3.0-only</PackageLicenseExpression>
         <RepositoryUrl>https://github.com/lllggghhhaaa/Ceiralizer</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
         <PackageVersion>3.0.0</PackageVersion>
