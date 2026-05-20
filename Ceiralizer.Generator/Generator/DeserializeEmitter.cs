@@ -11,18 +11,22 @@ public static class DeserializeEmitter
     public static void Emit(
         BlockBuilder bb,
         string typeName,
-        List<IFieldSymbol> fields,
+        List<PacketCodeGenerator.MemberInfo> members,
+        PacketOptions globalOptions,
         GeneratorContext ctx)
     {
         bb.Variable("var", "packet", $"new {typeName}()");
 
-        foreach (var field in fields)
+        foreach (var member in members)
         {
+            var cascadedOptions = CascadedOptions.Create(globalOptions, member.Options);
+
             EmitField(
                 bb,
-                $"packet.{field.Name}",
-                field.Type,
-                field.Type.ToDisplayString(),
+                $"packet.{member.Name}",
+                member.Type,
+                member.Type.ToDisplayString(),
+                cascadedOptions,
                 ctx);
         }
 
@@ -40,23 +44,24 @@ public static class DeserializeEmitter
         string target,
         ITypeSymbol type,
         string display,
+        CascadedOptions options,
         GeneratorContext ctx)
     {
         if (type.IsString())
         {
-            bb.Assign(target, "reader.ReadString(Encoding.UTF8, reader.ReadInt())");
+            bb.Assign(target, $"reader.ReadString({options.GetEncodingCode()}, {options.GetReaderPrefixCode()})");
             return;
         }
 
         if (type.IsChar())
         {
-            bb.Assign(target, "reader.ReadChar(Encoding.UTF8)");
+            bb.Assign(target, $"reader.ReadChar({options.GetEncodingCode()})");
             return;
         }
 
         if (type is IArrayTypeSymbol array)
         {
-            EmitArray(bb, target, array, ctx);
+            EmitArray(bb, target, array, options, ctx);
             return;
         }
 
@@ -87,15 +92,30 @@ public static class DeserializeEmitter
         BlockBuilder bb,
         string target,
         IArrayTypeSymbol array,
+        CascadedOptions options,
         GeneratorContext ctx)
     {
-        var len = $"{NameUtils.Sanitize(target)}_len";
-        var i   = $"{NameUtils.Sanitize(target)}_i";
-        var elementType = array.ElementType.ToDisplayString();
+        var size = options.Options.Collection.Size;
 
-        bb.Variable("var", len, "reader.ReadInt()")
-          .Assign(target, $"new {elementType}[{len}]")
-          .For($"int {i} = 0; {i} < {len}; {i}++", inner =>
-              EmitField(inner, $"{target}[{i}]", array.ElementType, elementType, ctx));
+        if (size is > 0)
+        {
+            var i = $"{NameUtils.Sanitize(target)}_i";
+            var elementType = array.ElementType.ToDisplayString();
+
+            bb.Assign(target, $"new {elementType}[{size.Value}]")
+              .For($"int {i} = 0; {i} < {size.Value}; {i}++", inner =>
+                  EmitField(inner, $"{target}[{i}]", array.ElementType, elementType, options, ctx));
+        }
+        else
+        {
+            var length = $"{NameUtils.Sanitize(target)}_len";
+            var i = $"{NameUtils.Sanitize(target)}_i";
+            var elementType = array.ElementType.ToDisplayString();
+
+            bb.Variable("var", length, "reader.ReadInt()")
+              .Assign(target, $"new {elementType}[{length}]")
+              .For($"int {i} = 0; {i} < {length}; {i}++", inner =>
+                  EmitField(inner, $"{target}[{i}]", array.ElementType, elementType, options, ctx));
+        }
     }
 }

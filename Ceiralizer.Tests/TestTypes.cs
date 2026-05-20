@@ -1,5 +1,7 @@
 using System.Text;
 using Ceiralizer;
+using Ceiralizer.Attributes;
+using Ceiralizer.Models;
 using Ceiralizer.Utils;
 
 public partial struct SimplePacket : IPacket
@@ -104,4 +106,119 @@ public partial struct ComplexPacket : IPacket
 public partial struct CharOnlyPacket : IPacket
 {
     [PacketField] public char Ch;
+}
+
+// --- Attribute test types ---
+
+public partial struct OrderedPacket : IPacket
+{
+    [PacketField] [PacketFieldOrder(3)] public int Third;
+    [PacketField] [PacketFieldOrder(1)] public int First;
+    [PacketField] [PacketFieldOrder(2)] public int Second;
+}
+
+public partial struct StringOptionsPacket : IPacket
+{
+    [PacketField] [PacketStringOptions(encoder: TextEncoding.ASCII, stringPrefixLength: PrefixType.Short)] public string AsciiShort;
+    [PacketField] [PacketStringOptions(encoder: TextEncoding.Unicode)] public string UnicodeString;
+    [PacketField] [PacketStringOptions(stringPrefixLength: PrefixType.Byte)] public string BytePrefixString;
+    [PacketField] public string DefaultString;
+}
+
+[PacketStringOptions(encoder: TextEncoding.ASCII, stringPrefixLength: PrefixType.Short)]
+public partial struct TypeLevelStringOptionsPacket : IPacket
+{
+    [PacketField] public string Name;
+    [PacketField] public string Description;
+}
+
+[PacketStringOptions(encoder: TextEncoding.ASCII, stringPrefixLength: PrefixType.Short)]
+public partial struct TypeLevelWithFieldOverridePacket : IPacket
+{
+    [PacketField] public string AsciiShort;
+    [PacketField]
+    [PacketStringOptions(encoder: TextEncoding.UTF8, stringPrefixLength: PrefixType.Int)]
+    public string Utf8Int;
+}
+
+public partial struct CollectionOptionsPacket : IPacket
+{
+    [PacketField] [PacketCollectionOptions(size: 0)] public int[] Dynamic;
+    [PacketField] [PacketCollectionOptions(size: 5)] public int[] FixedSize;
+}
+
+public partial struct Utf7StringPacket : IPacket
+{
+    [PacketField] [PacketStringOptions(encoder: TextEncoding.UTF7)] public string Utf7String;
+}
+
+public partial struct Utf32StringPacket : IPacket
+{
+    [PacketField] [PacketStringOptions(encoder: TextEncoding.UTF32)] public string Utf32String;
+}
+
+public partial struct BigEndianStringPacket : IPacket
+{
+    [PacketField] [PacketStringOptions(encoder: TextEncoding.BigEndianUnicode)] public string BigEndianString;
+}
+
+public partial struct SBytePrefixPacket : IPacket
+{
+    [PacketField] [PacketStringOptions(stringPrefixLength: PrefixType.SByte)] public string SBytePrefixed;
+}
+
+public partial struct ShortPrefixPacket : IPacket
+{
+    [PacketField] [PacketStringOptions(stringPrefixLength: PrefixType.Short)] public string ShortPrefixed;
+}
+
+public partial struct UShortPrefixPacket : IPacket
+{
+    [PacketField] [PacketStringOptions(stringPrefixLength: PrefixType.UShort)] public string UShortPrefixed;
+}
+
+public partial struct PacketWithProperties : IPacket
+{
+    [PacketField] public int Id { get; set; }
+    [PacketField] public string Name { get; set; }
+}
+
+public partial struct EmptyPacket : IPacket
+{
+}
+
+public partial struct PacketWithIgnoredField : IPacket
+{
+    [PacketField] public int Included;
+    public int Ignored;
+}
+
+public partial struct DuplicateOrderPacket : IPacket
+{
+    [PacketField] [PacketFieldOrder(1)] public int First;
+    [PacketField] [PacketFieldOrder(1)] public int Second;
+    [PacketField] [PacketFieldOrder(2)] public int Third;
+}
+
+public partial struct NegativeOrderPacket : IPacket
+{
+    [PacketField] [PacketFieldOrder(-5)] public int First;
+    [PacketField] [PacketFieldOrder(-10)] public int Second;
+    [PacketField] [PacketFieldOrder(0)] public int Third;
+}
+
+[PacketCollectionOptions(size: 3)]
+public partial struct TypeLevelCollectionPacket : IPacket
+{
+    [PacketField] public int[] FixedArray;
+}
+
+public partial struct ExplicitZeroSizePacket : IPacket
+{
+    [PacketField] [PacketCollectionOptions(size: 0)] public int[] DynamicArray;
+}
+
+public partial struct NoAttributeCollectionPacket : IPacket
+{
+    [PacketField] public int[] DynamicArray;
 }

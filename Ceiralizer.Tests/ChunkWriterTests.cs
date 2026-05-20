@@ -6,376 +6,272 @@ namespace Ceiralizer.Tests;
 
 public class ChunkWriterTests
 {
-    private ChunkWriter CreateWriter() => new ChunkWriter(new ArrayBufferWriter<byte>());
-
-    [Fact]
-    public void WriteByte_SingleByte_WritesCorrectValue()
+    private static ChunkWriter Create() => new(new ArrayBufferWriter<byte>());
+    private static byte[] WriteAndGetData(Action<ChunkWriter> action)
     {
-        // Arrange
-        var writer = CreateWriter();
-        byte value = 42;
+        var w = Create();
+        action(w);
+        return w.GetWrittenData();
+    }
 
-        // Act
-        writer.Write(value);
-        var data = writer.GetWrittenData();
+    #region WriteByte / WriteSByte
 
-        // Assert
-        Assert.Single(data);
-        Assert.Equal(42, data[0]);
+    [Theory]
+    [InlineData(0, new byte[] { 0 })]
+    [InlineData(42, new byte[] { 42 })]
+    [InlineData(255, new byte[] { 255 })]
+    public void WriteByte_ProducesCorrectBytes(byte value, byte[] expected)
+    {
+        Assert.Equal(expected, WriteAndGetData(w => w.Write(value)));
+    }
+
+    [Theory]
+    [InlineData(0, new byte[] { 0 })]
+    [InlineData(127, new byte[] { 127 })]
+    [InlineData(-42, new byte[] { 214 })]
+    public void WriteSByte_ProducesCorrectBytes(sbyte value, byte[] expected)
+    {
+        Assert.Equal(expected, WriteAndGetData(w => w.Write(value)));
+    }
+
+    #endregion
+
+    #region WriteShort / WriteUShort
+
+    [Theory]
+    [InlineData((short)256, new byte[] { 0x00, 0x01 })]
+    [InlineData((short)-100, new byte[] { 0x9C, 0xFF })]
+    public void WriteShort_LittleEndian_ProducesCorrectBytes(short value, byte[] expected)
+    {
+        Assert.Equal(expected, WriteAndGetData(w => w.Write(value)));
+    }
+
+    [Theory]
+    [InlineData((ushort)256, new byte[] { 0x00, 0x01 })]
+    [InlineData((ushort)65535, new byte[] { 0xFF, 0xFF })]
+    public void WriteUShort_LittleEndian_ProducesCorrectBytes(ushort value, byte[] expected)
+    {
+        Assert.Equal(expected, WriteAndGetData(w => w.Write(value)));
+    }
+
+    #endregion
+
+    #region WriteInt / WriteUInt
+
+    [Theory]
+    [InlineData(0x12345678, new byte[] { 0x78, 0x56, 0x34, 0x12 })]
+    [InlineData(-1000, new byte[] { 0x18, 0xFC, 0xFF, 0xFF })]
+    public void WriteInt_LittleEndian_ProducesCorrectBytes(int value, byte[] expected)
+    {
+        Assert.Equal(expected, WriteAndGetData(w => w.Write(value)));
     }
 
     [Fact]
-    public void WriteByte_MaxAndMinValues_WritesCorrectly()
+    public void WriteInt_MinAndMax_RoundTrip()
     {
-        // Arrange
-        var writer = CreateWriter();
-
-        // Act
-        writer.Write(byte.MinValue);
-        writer.Write(byte.MaxValue);
-        var data = writer.GetWrittenData();
-
-        // Assert
-        Assert.Equal(2, data.Length);
-        Assert.Equal(0, data[0]);
-        Assert.Equal(255, data[1]);
-    }
-
-    [Fact]
-    public void WriteSByte_SignedValues_WritesCorrectly()
-    {
-        // Arrange
-        var writer = CreateWriter();
-
-        // Act
-        writer.Write((sbyte)-42);
-        writer.Write((sbyte)127);
-        var data = writer.GetWrittenData();
-
-        // Assert
-        Assert.Equal(2, data.Length);
-        Assert.Equal(256 - 42, data[0]); // -42 in two's complement
-        Assert.Equal(127, data[1]);
-    }
-
-    [Fact]
-    public void WriteShort_LittleEndianOrder_WritesCorrectly()
-    {
-        // Arrange
-        var writer = CreateWriter();
-        short value = 256; // 0x0100
-
-        // Act
-        writer.Write(value);
-        var data = writer.GetWrittenData();
-
-        // Assert
-        Assert.Equal(2, data.Length);
-        Assert.Equal(0x00, data[0]); // Low byte
-        Assert.Equal(0x01, data[1]); // High byte
-    }
-
-    [Fact]
-    public void WriteUShort_LittleEndianOrder_WritesCorrectly()
-    {
-        // Arrange
-        var writer = CreateWriter();
-        ushort value = 256;
-
-        // Act
-        writer.Write(value);
-        var data = writer.GetWrittenData();
-
-        // Assert
-        Assert.Equal(2, data.Length);
-        Assert.Equal(0x00, data[0]);
-        Assert.Equal(0x01, data[1]);
-    }
-
-    [Fact]
-    public void WriteInt_LittleEndianOrder_WritesCorrectly()
-    {
-        // Arrange
-        var writer = CreateWriter();
-        int value = 0x12345678;
-
-        // Act
-        writer.Write(value);
-        var data = writer.GetWrittenData();
-
-        // Assert
-        Assert.Equal(4, data.Length);
-        Assert.Equal(0x78, data[0]);
-        Assert.Equal(0x56, data[1]);
-        Assert.Equal(0x34, data[2]);
-        Assert.Equal(0x12, data[3]);
-    }
-
-    [Fact]
-    public void WriteUInt_LittleEndianOrder_WritesCorrectly()
-    {
-        // Arrange
-        var writer = CreateWriter();
-        uint value = 0x12345678;
-
-        // Act
-        writer.Write(value);
-        var data = writer.GetWrittenData();
-
-        // Assert
-        Assert.Equal(4, data.Length);
-        Assert.Equal(0x78, data[0]);
-        Assert.Equal(0x56, data[1]);
-        Assert.Equal(0x34, data[2]);
-        Assert.Equal(0x12, data[3]);
-    }
-
-    [Fact]
-    public void WriteLong_LittleEndianOrder_WritesCorrectly()
-    {
-        // Arrange
-        var writer = CreateWriter();
-        long value = 0x0123456789ABCDEF;
-
-        // Act
-        writer.Write(value);
-        var data = writer.GetWrittenData();
-
-        // Assert
+        var data = WriteAndGetData(w => { w.Write(int.MinValue); w.Write(int.MaxValue); });
         Assert.Equal(8, data.Length);
-        Assert.Equal(0xEF, data[0]);
-        Assert.Equal(0xCD, data[1]);
-        Assert.Equal(0xAB, data[2]);
-        Assert.Equal(0x89, data[3]);
-        Assert.Equal(0x67, data[4]);
-        Assert.Equal(0x45, data[5]);
-        Assert.Equal(0x23, data[6]);
-        Assert.Equal(0x01, data[7]);
+        Assert.Equal(int.MinValue, BitConverter.ToInt32(data, 0));
+        Assert.Equal(int.MaxValue, BitConverter.ToInt32(data, 4));
     }
 
     [Fact]
-    public void WriteULong_LittleEndianOrder_WritesCorrectly()
+    public void WriteUInt_MaxValue_RoundTrip()
     {
-        // Arrange
-        var writer = CreateWriter();
-        ulong value = 0x0123456789ABCDEF;
+        var data = WriteAndGetData(w => w.Write(uint.MaxValue));
+        Assert.Equal(uint.MaxValue, BitConverter.ToUInt32(data, 0));
+    }
 
-        // Act
-        writer.Write(value);
-        var data = writer.GetWrittenData();
+    #endregion
 
-        // Assert
-        Assert.Equal(8, data.Length);
-        Assert.Equal(0xEF, data[0]);
-        Assert.Equal(0xCD, data[1]);
-        Assert.Equal(0xAB, data[2]);
-        Assert.Equal(0x89, data[3]);
+    #region WriteLong / WriteULong
+
+    [Theory]
+    [InlineData(0x0123456789ABCDEFL, new byte[] { 0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01 })]
+    public void WriteLong_LittleEndian_ProducesCorrectBytes(long value, byte[] expected)
+    {
+        Assert.Equal(expected, WriteAndGetData(w => w.Write(value)));
     }
 
     [Fact]
-    public void WriteFloat_SpecificValue_WritesCorrectly()
+    public void WriteLong_MinAndMax_RoundTrip()
     {
-        // Arrange
-        var writer = CreateWriter();
-        float value = 3.14f;
-
-        // Act
-        writer.Write(value);
-        var data = writer.GetWrittenData();
-
-        // Assert
-        Assert.Equal(4, data.Length);
-        float result = BitConverter.Int32BitsToSingle(BitConverter.ToInt32(data, 0));
-        Assert.Equal(value, result);
+        var data = WriteAndGetData(w => { w.Write(long.MinValue); w.Write(long.MaxValue); });
+        Assert.Equal(long.MinValue, BitConverter.ToInt64(data, 0));
+        Assert.Equal(long.MaxValue, BitConverter.ToInt64(data, 8));
     }
 
     [Fact]
-    public void WriteDouble_SpecificValue_WritesCorrectly()
+    public void WriteULong_MaxValue_RoundTrip()
     {
-        // Arrange
-        var writer = CreateWriter();
-        double value = 2.718281828;
+        var data = WriteAndGetData(w => w.Write(ulong.MaxValue));
+        Assert.Equal(ulong.MaxValue, BitConverter.ToUInt64(data, 0));
+    }
 
-        // Act
-        writer.Write(value);
-        var data = writer.GetWrittenData();
+    #endregion
 
-        // Assert
-        Assert.Equal(8, data.Length);
-        double result = BitConverter.Int64BitsToDouble(BitConverter.ToInt64(data, 0));
-        Assert.Equal(value, result);
+    #region WriteFloat / WriteDouble
+
+    [Theory]
+    [InlineData(3.14f)]
+    [InlineData(0f)]
+    [InlineData(-1.5f)]
+    [InlineData(float.MaxValue)]
+    [InlineData(float.MinValue)]
+    public void WriteFloat_RoundTrip_ReturnsCorrectValue(float value)
+    {
+        var data = WriteAndGetData(w => w.Write(value));
+        Assert.Equal(value, BitConverter.ToSingle(data, 0));
     }
 
     [Fact]
-    public void WriteFloat_ZeroAndNegative_WritesCorrectly()
+    public void WriteFloat_SpecialValues_RoundTrip()
     {
-        // Arrange
-        var writer = CreateWriter();
+        var data = WriteAndGetData(w => { w.Write(float.NaN); w.Write(float.PositiveInfinity); w.Write(float.NegativeInfinity); });
+        Assert.True(float.IsNaN(BitConverter.ToSingle(data, 0)));
+        Assert.True(float.IsPositiveInfinity(BitConverter.ToSingle(data, 4)));
+        Assert.True(float.IsNegativeInfinity(BitConverter.ToSingle(data, 8)));
+    }
 
-        // Act
-        writer.Write(0f);
-        writer.Write(-1.5f);
-        var data = writer.GetWrittenData();
-
-        // Assert
-        Assert.Equal(8, data.Length);
+    [Theory]
+    [InlineData(2.718281828)]
+    [InlineData(0.0)]
+    [InlineData(-100.5)]
+    public void WriteDouble_RoundTrip_ReturnsCorrectValue(double value)
+    {
+        var data = WriteAndGetData(w => w.Write(value));
+        Assert.Equal(value, BitConverter.ToDouble(data, 0));
     }
 
     [Fact]
-    public void WriteBool_TrueValue_WritesOne()
+    public void WriteDouble_SpecialValues_RoundTrip()
     {
-        // Arrange
-        var writer = CreateWriter();
+        var data = WriteAndGetData(w => { w.Write(double.NaN); w.Write(double.PositiveInfinity); });
+        Assert.True(double.IsNaN(BitConverter.ToDouble(data, 0)));
+        Assert.True(double.IsPositiveInfinity(BitConverter.ToDouble(data, 8)));
+    }
 
-        // Act
-        writer.Write(true);
-        var data = writer.GetWrittenData();
+    #endregion
 
-        // Assert
-        Assert.Single(data);
-        Assert.Equal(1, data[0]);
+    #region WriteBool
+
+    [Theory]
+    [InlineData(true, new byte[] { 1 })]
+    [InlineData(false, new byte[] { 0 })]
+    public void WriteBool_ProducesCorrectBytes(bool value, byte[] expected)
+    {
+        Assert.Equal(expected, WriteAndGetData(w => w.Write(value)));
     }
 
     [Fact]
-    public void WriteBool_FalseValue_WritesZero()
+    public void WriteBool_Multiple_ProducesCorrectSequence()
     {
-        // Arrange
-        var writer = CreateWriter();
+        var data = WriteAndGetData(w => { w.Write(true); w.Write(false); w.Write(true); });
+        Assert.Equal([1, 0, 1], data);
+    }
 
-        // Act
-        writer.Write(false);
-        var data = writer.GetWrittenData();
+    #endregion
 
-        // Assert
-        Assert.Single(data);
-        Assert.Equal(0, data[0]);
+    #region WriteString
+
+    [Theory]
+    [InlineData("Hello", "UTF8")]
+    [InlineData("", "UTF8")]
+    [InlineData("Hello, 世界!", "UTF8")]
+    [InlineData("你好", "UTF8")]
+    public void WriteString_RoundTrip_ReturnsCorrectValue(string value, string encodingName)
+    {
+        var encoding = encodingName switch { "UTF8" => Encoding.UTF8, "ASCII" => Encoding.ASCII, _ => Encoding.UTF8 };
+        var data = WriteAndGetData(w => w.Write(value, encoding));
+        Assert.Equal(value, encoding.GetString(data));
     }
 
     [Fact]
-    public void WriteBool_MultipleBools_WritesCorrectly()
+    public void WriteString_AsciiReplacesNonAscii()
     {
-        // Arrange
-        var writer = CreateWriter();
-
-        // Act
-        writer.Write(true);
-        writer.Write(false);
-        writer.Write(true);
-        var data = writer.GetWrittenData();
-
-        // Assert
-        Assert.Equal(3, data.Length);
-        Assert.Equal(1, data[0]);
-        Assert.Equal(0, data[1]);
-        Assert.Equal(1, data[2]);
+        var data = WriteAndGetData(w => w.Write("你好", Encoding.ASCII));
+        Assert.Equal("??", Encoding.ASCII.GetString(data));
     }
 
     [Fact]
-    public void WriteString_SimpleAsciiString_WritesCorrectly()
+    public void WriteString_DifferentEncodings_ProducesDifferentSizes()
     {
-        // Arrange
-        var writer = CreateWriter();
-        string value = "Hello";
+        var utf8 = WriteAndGetData(w => w.Write("A", Encoding.UTF8));
+        var unicode = WriteAndGetData(w => w.Write("A", Encoding.Unicode));
+        Assert.Single(utf8);
+        Assert.Equal(2, unicode.Length);
+    }
 
-        // Act
-        writer.Write(value, Encoding.UTF8);
-        var data = writer.GetWrittenData();
+    #endregion
 
-        // Assert
-        string result = Encoding.UTF8.GetString(data);
-        Assert.Equal("Hello", result);
+    #region WriteChar
+
+    [Theory]
+    [InlineData('A', "ASCII", new byte[] { 0x41 })]
+    [InlineData('A', "UTF8", new byte[] { 0x41 })]
+    [InlineData('A', "Unicode", new byte[] { 0x41, 0x00 })]
+    [InlineData('A', "UTF32", new byte[] { 0x41, 0x00, 0x00, 0x00 })]
+    public void WriteChar_Encoding_ProducesCorrectBytes(char value, string encodingName, byte[] expected)
+    {
+        var encoding = encodingName switch
+        {
+            "ASCII" => Encoding.ASCII,
+            "UTF8" => Encoding.UTF8,
+            "Unicode" => Encoding.Unicode,
+            "UTF32" => Encoding.UTF32,
+            _ => Encoding.UTF8
+        };
+        Assert.Equal(expected, WriteAndGetData(w => w.Write(value, encoding)));
     }
 
     [Fact]
-    public void WriteString_EmptyString_WritesZeroBytes()
+    public void WriteChar_Utf8Multibyte_ProducesCorrectBytes()
     {
-        // Arrange
-        var writer = CreateWriter();
+        var data = WriteAndGetData(w => w.Write('\u20AC', Encoding.UTF8));
+        Assert.Equal([0xE2, 0x82, 0xAC], data);
+    }
 
-        // Act
-        writer.Write("", Encoding.UTF8);
-        var data = writer.GetWrittenData();
+    #endregion
 
-        // Assert
-        Assert.Empty(data);
+    #region WriteSpan
+
+    [Fact]
+    public void WriteSpan_ProducesCorrectBytes()
+    {
+        Assert.Equal([0x01, 0x02, 0x03], WriteAndGetData(w => w.Write(new byte[] { 0x01, 0x02, 0x03 })));
     }
 
     [Fact]
-    public void WriteString_StringWithSpecialCharacters_WritesCorrectly()
+    public void WriteSpan_Empty_ProducesEmpty()
     {
-        // Arrange
-        var writer = CreateWriter();
-        string value = "Hello, 世界!";
+        Assert.Empty(WriteAndGetData(w => w.Write(ReadOnlySpan<byte>.Empty)));
+    }
 
-        // Act
-        writer.Write(value, Encoding.UTF8);
-        var data = writer.GetWrittenData();
+    #endregion
 
-        // Assert
-        string result = Encoding.UTF8.GetString(data);
-        Assert.Equal(value, result);
+    #region Multiple Writes
+
+    [Fact]
+    public void MultipleWrites_MixedTypes_CorrectSize()
+    {
+        var data = WriteAndGetData(w =>
+        {
+            w.Write(true);
+            w.Write((byte)42);
+            w.Write((short)1000);
+            w.Write(123456);
+            w.Write(123456789L);
+            w.Write(1.23f);
+            w.Write(4.56);
+        });
+        Assert.Equal(28, data.Length);
     }
 
     [Fact]
-    public void WriteString_DifferentEncodings_ProducesDifferentResults()
+    public void MultipleWrites_SequentialValues_CorrectLayout()
     {
-        // Arrange
-        var writer1 = CreateWriter();
-        var writer2 = CreateWriter();
-        string value = "A";
-
-        // Act
-        writer1.Write(value, Encoding.UTF8);
-        writer2.Write(value, Encoding.ASCII);
-
-        // Assert - they should be the same for ASCII character
-        Assert.Equal(writer1.GetWrittenData(), writer2.GetWrittenData());
-    }
-
-    [Fact]
-    public void WriteSpan_ByteSpan_WritesCorrectly()
-    {
-        // Arrange
-        var writer = CreateWriter();
-        ReadOnlySpan<byte> span = new byte[] { 0x01, 0x02, 0x03 };
-
-        // Act
-        writer.Write(span);
-        var data = writer.GetWrittenData();
-
-        // Assert
-        Assert.Equal(new byte[] { 0x01, 0x02, 0x03 }, data);
-    }
-
-    [Fact]
-    public void WriteSpan_EmptySpan_WritesNothing()
-    {
-        // Arrange
-        var writer = CreateWriter();
-        ReadOnlySpan<byte> span = ReadOnlySpan<byte>.Empty;
-
-        // Act
-        writer.Write(span);
-        var data = writer.GetWrittenData();
-
-        // Assert
-        Assert.Empty(data);
-    }
-
-    [Fact]
-    public void MultipleWrites_SequentialValues_WritesInOrder()
-    {
-        // Arrange
-        var writer = CreateWriter();
-
-        // Act
-        writer.Write((byte)1);
-        writer.Write((short)256);
-        writer.Write((int)65536);
-        var data = writer.GetWrittenData();
-
-        // Assert
-        Assert.Equal(7, data.Length); // 1 + 2 + 4
+        var data = WriteAndGetData(w => { w.Write((byte)1); w.Write((short)256); w.Write((int)65536); });
+        Assert.Equal(7, data.Length);
         Assert.Equal(1, data[0]);
         Assert.Equal(0x00, data[1]);
         Assert.Equal(0x01, data[2]);
@@ -385,34 +281,15 @@ public class ChunkWriterTests
         Assert.Equal(0x00, data[6]);
     }
 
-    [Fact]
-    public void GetWrittenData_ZeroWrites_ReturnsEmptyArray()
-    {
-        // Arrange
-        var writer = CreateWriter();
+    #endregion
 
-        // Act
-        var data = writer.GetWrittenData();
-
-        // Assert
-        Assert.Empty(data);
-    }
+    #region Empty Writer
 
     [Fact]
-    public void Write_LargeNumber_WritesCorrectly()
+    public void NoWrites_ReturnsEmptyArray()
     {
-        // Arrange
-        var writer = CreateWriter();
-        int largeValue = 1000000;
-
-        // Act
-        writer.Write(largeValue);
-        var data = writer.GetWrittenData();
-
-        // Assert
-        Assert.Equal(4, data.Length);
-        int result = BitConverter.ToInt32(data, 0);
-        Assert.Equal(largeValue, result);
+        Assert.Empty(Create().GetWrittenData());
     }
+
+    #endregion
 }
-

@@ -19,6 +19,7 @@
         <ProjectReference Include="..\Ceiralizer.Generator\Ceiralizer.Generator.csproj"
                           ReferenceOutputAssembly="false"
                           OutputItemType="Analyzer" />
+        <ProjectReference Include="..\Ceiralizer.Generator\Ceiralizer.Generator.csproj" />
     </ItemGroup>
 
 </Project>

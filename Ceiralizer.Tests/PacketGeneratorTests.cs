@@ -1,548 +1,212 @@
 namespace Ceiralizer.Tests;
 
-/// <summary>
-/// Tests for packet serialization and deserialization functionality.
-/// Covers various data types, nested structures, arrays, and custom serializers.
-/// </summary>
-public class PacketGeneratorTests
+public class PacketGeneratorTests(ITestOutputHelper output)
 {
-    #region Simple Packet Tests
+    private static string Hex(byte[] data) => $"[{string.Join(", ", data.Select(b => $"0x{b:X2}"))}] ({data.Length} bytes)";
 
-    [Fact]
-    public void SimplePacket_RoundTrip_ProducesEqualValues()
+    #region Simple Packet
+
+    [Theory]
+    [InlineData(42, "Hello, world!")]
+    [InlineData(0, "Zero")]
+    [InlineData(-999, "Negative")]
+    [InlineData(int.MaxValue, "Max")]
+    [InlineData(int.MinValue, "Min")]
+    public void SimplePacket_RoundTrip_PreservesValues(int id, string name)
     {
-        // Arrange
-        var original = new SimplePacket { Id = 42, Name = "Hello, world!" };
-
-        // Act
+        var original = new SimplePacket { Id = id, Name = name };
         var result = SimplePacket.Deserialize(original.Serialize());
 
-        // Assert
+        output.WriteLine($"Id: {original.Id} -> {result.Id}");
+        output.WriteLine($"Name: '{original.Name}' -> '{result.Name}'");
+
         Assert.Equal(original.Id, result.Id);
         Assert.Equal(original.Name, result.Name);
     }
 
-    [Fact]
-    public void SimplePacket_WithZeroId_RoundTrip_PreservesValues()
+    [Theory]
+    [InlineData("")]
+    [InlineData("Test\n\t\r\"'")]
+    [InlineData("你好世界🚀")]
+    public void SimplePacket_NameRoundTrip_PreservesSpecialCharacters(string name)
     {
-        // Arrange
-        var original = new SimplePacket { Id = 0, Name = "Zero" };
-
-        // Act
+        var original = new SimplePacket { Id = 1, Name = name };
         var result = SimplePacket.Deserialize(original.Serialize());
-
-        // Assert
-        Assert.Equal(0, result.Id);
-        Assert.Equal("Zero", result.Name);
+        Assert.Equal(name, result.Name);
     }
 
     [Fact]
-    public void SimplePacket_WithNegativeId_RoundTrip_PreservesValues()
+    public void SimplePacket_Serialize_ProducesExpectedBinaryLayout()
     {
-        // Arrange
-        var original = new SimplePacket { Id = -999, Name = "Negative" };
-
-        // Act
-        var result = SimplePacket.Deserialize(original.Serialize());
-
-        // Assert
-        Assert.Equal(-999, result.Id);
-    }
-
-    [Fact]
-    public void SimplePacket_WithMaxIntId_RoundTrip_PreservesValues()
-    {
-        // Arrange
-        var original = new SimplePacket { Id = int.MaxValue, Name = "Max" };
-
-        // Act
-        var result = SimplePacket.Deserialize(original.Serialize());
-
-        // Assert
-        Assert.Equal(int.MaxValue, result.Id);
-    }
-
-    [Fact]
-    public void SimplePacket_WithEmptyName_RoundTrip_PreservesValues()
-    {
-        // Arrange
-        var original = new SimplePacket { Id = 1, Name = "" };
-
-        // Act
-        var result = SimplePacket.Deserialize(original.Serialize());
-
-        // Assert
-        Assert.Empty(result.Name);
-    }
-
-    [Fact]
-    public void SimplePacket_WithSpecialCharacters_RoundTrip_PreservesValues()
-    {
-        // Arrange
-        var original = new SimplePacket { Id = 1, Name = "Test\n\t\r\"'" };
-
-        // Act
-        var result = SimplePacket.Deserialize(original.Serialize());
-
-        // Assert
-        Assert.Equal("Test\n\t\r\"'", result.Name);
-    }
-
-    [Fact]
-    public void SimplePacket_WithUnicodeCharacters_RoundTrip_PreservesValues()
-    {
-        // Arrange
-        var original = new SimplePacket { Id = 1, Name = "你好世界🚀" };
-
-        // Act
-        var result = SimplePacket.Deserialize(original.Serialize());
-
-        // Assert
-        Assert.Equal("你好世界🚀", result.Name);
-    }
-
-    [Fact]
-    public void Serialize_SimplePacket_ProducesExpectedBinaryLayout()
-    {
-        // Arrange
         var packet = new SimplePacket { Id = 256, Name = "AB" };
-        byte[] expectedBytes =
-        [
-            0x00, 0x01, 0x00, 0x00, // Id (int, little-endian)
-            0x02, 0x00, 0x00, 0x00, // Name length (int)
-            0x41, 0x42 // "AB" UTF-8 bytes
-        ];
-
-        // Act
-        byte[] actual = packet.Serialize();
-
-        // Assert
-        Assert.Equal(expectedBytes, actual);
+        byte[] expected = [0x00, 0x01, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x41, 0x42];
+        Assert.Equal(expected, packet.Serialize());
     }
 
     #endregion
 
-    #region Array Packet Tests
+    #region Array Packet
 
-    [Fact]
-    public void PacketWithArray_RoundTrip_ProducesEqualElements()
+    [Theory]
+    [InlineData(new[] { 1, 2, 3, 4 }, new[] { "Alice", "Bob" })]
+    [InlineData(new int[] { }, new string[] { })]
+    [InlineData(new[] { -1, -100, int.MinValue }, new[] { "Neg" })]
+    public void PacketWithArray_RoundTrip_PreservesValues(int[] values, string[] names)
     {
-        // Arrange
-        var original = new PacketWithArray
-        {
-            Values = [1, 2, 3, 4],
-            Names = ["Alice", "Bob"]
-        };
-
-        // Act
+        var original = new PacketWithArray { Values = values, Names = names };
         var result = PacketWithArray.Deserialize(original.Serialize());
 
-        // Assert
-        Assert.True(original.Values.SequenceEqual(result.Values));
-        Assert.True(original.Names.SequenceEqual(result.Names));
+        Assert.Equal(original.Values, result.Values);
+        Assert.Equal(original.Names, result.Names);
     }
 
     [Fact]
-    public void PacketWithArray_RoundTrip_ProducesEqualElements_LargeArray()
+    public void PacketWithArray_LargeArray_RoundTrip()
     {
-        // Arrange
         var values = Enumerable.Range(1, 1000).ToArray();
-        var original = new PacketWithArray
-        {
-            Values = values,
-            Names = ["Test"]
-        };
-
-        // Act
+        var original = new PacketWithArray { Values = values, Names = ["Test"] };
         var result = PacketWithArray.Deserialize(original.Serialize());
-
-        // Assert
-        Assert.True(original.Values.SequenceEqual(result.Values));
+        Assert.Equal(values, result.Values);
     }
 
     [Fact]
-    public void PacketWithEmptyArrays_RoundTrip_ReturnsEmptyArrays()
+    public void PacketWithArray_EmptyStrings_RoundTrip()
     {
-        // Arrange
-        var original = new PacketWithArray
-        {
-            Values = Array.Empty<int>(),
-            Names = Array.Empty<string>()
-        };
-
-        // Act
+        var original = new PacketWithArray { Values = [1], Names = ["", "NonEmpty", ""] };
         var result = PacketWithArray.Deserialize(original.Serialize());
-
-        // Assert
-        Assert.Empty(result.Values);
-        Assert.Empty(result.Names);
-    }
-
-    [Fact]
-    public void PacketWithArray_WithNegativeValues_RoundTrip_PreservesValues()
-    {
-        // Arrange
-        var original = new PacketWithArray
-        {
-            Values = [-1, -100, int.MinValue],
-            Names = ["Neg"]
-        };
-
-        // Act
-        var result = PacketWithArray.Deserialize(original.Serialize());
-
-        // Assert
-        Assert.Equal([-1, -100, int.MinValue], result.Values);
-    }
-
-    [Fact]
-    public void PacketWithArray_WithEmptyStrings_RoundTrip_PreservesValues()
-    {
-        // Arrange
-        var original = new PacketWithArray
-        {
-            Values = [1],
-            Names = ["", "NonEmpty", ""]
-        };
-
-        // Act
-        var result = PacketWithArray.Deserialize(original.Serialize());
-
-        // Assert
         Assert.Equal(["", "NonEmpty", ""], result.Names);
     }
 
     [Fact]
-    public void Serialize_PacketWithArray_ProducesExpectedBinaryLayout()
+    public void PacketWithArray_Serialize_ProducesExpectedBinaryLayout()
     {
-        // Arrange
-        var packet = new PacketWithArray
-        {
-            Values = [1, 2],
-            Names = ["X", "YZ"]
-        };
-        byte[] expectedBytes =
-        {
-            0x02, 0x00, 0x00, 0x00, // Values length
-            0x01, 0x00, 0x00, 0x00, // Values[0] = 1
-            0x02, 0x00, 0x00, 0x00, // Values[1] = 2
-            0x02, 0x00, 0x00, 0x00, // Names length
-            0x01, 0x00, 0x00, 0x00, 0x58, // "X"
-            0x02, 0x00, 0x00, 0x00, 0x59, 0x5A // "YZ"
-        };
-
-        // Act
-        byte[] actual = packet.Serialize();
-
-        // Assert
-        Assert.Equal(expectedBytes, actual);
+        var packet = new PacketWithArray { Values = [1, 2], Names = ["X", "YZ"] };
+        byte[] expected = [0x02, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x58, 0x02, 0x00, 0x00, 0x00, 0x59, 0x5A];
+        Assert.Equal(expected, packet.Serialize());
     }
 
     #endregion
 
-    #region Nested Packet Tests
+    #region Nested Packet
 
-    [Fact]
-    public void OuterPacket_WithNestedPacket_RoundTrip_PreservesAllFields()
+    [Theory]
+    [InlineData(7, 1.5f, -3.14f)]
+    [InlineData(0, 0f, 0f)]
+    [InlineData(1, float.MaxValue, float.MinValue)]
+    public void OuterPacket_RoundTrip_PreservesValues(int count, float x, float y)
     {
-        // Arrange
-        var original = new OuterPacket
-        {
-            Count = 7,
-            Position = new InnerPacket { X = 1.5f, Y = -3.14f }
-        };
-
-        // Act
+        var original = new OuterPacket { Count = count, Position = new InnerPacket { X = x, Y = y } };
         var result = OuterPacket.Deserialize(original.Serialize());
 
-        // Assert
         Assert.Equal(original.Count, result.Count);
         Assert.Equal(original.Position.X, result.Position.X);
         Assert.Equal(original.Position.Y, result.Position.Y);
     }
 
-    [Fact]
-    public void OuterPacket_WithZeroCount_RoundTrip_PreservesValues()
-    {
-        // Arrange
-        var original = new OuterPacket
-        {
-            Count = 0,
-            Position = new InnerPacket { X = 0f, Y = 0f }
-        };
-
-        // Act
-        var result = OuterPacket.Deserialize(original.Serialize());
-
-        // Assert
-        Assert.Equal(0, result.Count);
-        Assert.Equal(0f, result.Position.X);
-        Assert.Equal(0f, result.Position.Y);
-    }
-
-    [Fact]
-    public void InnerPacket_WithFloatEdgeCases_RoundTrip_PreservesValues()
-    {
-        // Arrange
-        var original = new OuterPacket
-        {
-            Count = 1,
-            Position = new InnerPacket { X = float.MaxValue, Y = float.MinValue }
-        };
-
-        // Act
-        var result = OuterPacket.Deserialize(original.Serialize());
-
-        // Assert
-        Assert.Equal(original.Position.X, result.Position.X);
-        Assert.Equal(original.Position.Y, result.Position.Y);
-    }
-
     #endregion
 
-    #region Custom Serializer Tests
+    #region Custom Serializer / ISerializable
 
-    [Fact]
-    public void PacketWithSerializable_RoundTrip_EqualsOriginalData()
+    [Theory]
+    [InlineData(99, "Test")]
+    [InlineData(42, "")]
+    [InlineData(0, "Zero")]
+    public void PacketWithSerializable_RoundTrip_PreservesValues(int a, string b)
     {
-        // Arrange
-        var original = new PacketWithSerializable
-        {
-            Data = new FooBar(99, "Test")
-        };
-
-        // Act
+        var original = new PacketWithSerializable { Data = new FooBar(a, b) };
         var result = PacketWithSerializable.Deserialize(original.Serialize());
-
-        // Assert
         Assert.Equal(original.Data, result.Data);
     }
 
-    [Fact]
-    public void PacketWithSerializable_WithEmptyString_RoundTrip_PreservesData()
+    [Theory]
+    [InlineData(1.0f, 2.0f, 3.0f)]
+    [InlineData(0f, 0f, 0f)]
+    [InlineData(-1.5f, -2.5f, -3.5f)]
+    public void PacketWithCustomSerializer_RoundTrip_PreservesValues(float x, float y, float z)
     {
-        // Arrange
-        var original = new PacketWithSerializable
-        {
-            Data = new FooBar(42, "")
-        };
-
-        // Act
-        var result = PacketWithSerializable.Deserialize(original.Serialize());
-
-        // Assert
-        Assert.Equal(42, result.Data.A);
-        Assert.Empty(result.Data.B);
-    }
-
-    [Fact]
-    public void PacketWithSerializable_WithZeroValue_RoundTrip_PreservesData()
-    {
-        // Arrange
-        var original = new PacketWithSerializable
-        {
-            Data = new FooBar(0, "Zero")
-        };
-
-        // Act
-        var result = PacketWithSerializable.Deserialize(original.Serialize());
-
-        // Assert
-        Assert.Equal(0, result.Data.A);
-        Assert.Equal("Zero", result.Data.B);
-    }
-
-    [Fact]
-    public void PacketWithCustomSerializer_RoundTrip_EqualsOriginalPosition()
-    {
-        // Arrange
-        var original = new PacketWithCustomSerializer
-        {
-            Position = new Vector3(1.0f, 2.0f, 3.0f)
-        };
-
-        // Act
+        var original = new PacketWithCustomSerializer { Position = new Vector3(x, y, z) };
         var result = PacketWithCustomSerializer.Deserialize(original.Serialize());
-
-        // Assert
-        Assert.Equal(original.Position, result.Position);
-    }
-
-    [Fact]
-    public void PacketWithCustomSerializer_WithZeroVector_RoundTrip_PreservesValues()
-    {
-        // Arrange
-        var original = new PacketWithCustomSerializer
-        {
-            Position = new Vector3(0f, 0f, 0f)
-        };
-
-        // Act
-        var result = PacketWithCustomSerializer.Deserialize(original.Serialize());
-
-        // Assert
-        Assert.Equal(Vector3.Zero, result.Position);
-    }
-
-    [Fact]
-    public void PacketWithCustomSerializer_WithNegativeValues_RoundTrip_PreservesValues()
-    {
-        // Arrange
-        var original = new PacketWithCustomSerializer
-        {
-            Position = new Vector3(-1.5f, -2.5f, -3.5f)
-        };
-
-        // Act
-        var result = PacketWithCustomSerializer.Deserialize(original.Serialize());
-
-        // Assert
         Assert.Equal(original.Position, result.Position);
     }
 
     #endregion
 
-    #region Complex Packet Tests
+    #region Complex Packet
 
     [Fact]
-    public void ComplexPacket_WithAllSupportedTypes_RoundTrip_PreservesAllValues()
+    public void ComplexPacket_AllTypes_RoundTrip()
     {
-        // Arrange
         var original = new ComplexPacket
         {
             Flags = 0xAB,
             Symbol = '$',
             Inner = new InnerPacket { X = 10.0f, Y = 20.0f },
             SerializableData = new FooBar(5, "Foo"),
-            Path =
-            [
-                new Vector3(0, 0, 0),
-                new Vector3(1, 1, 1)
-            ]
+            Path = [new Vector3(0, 0, 0), new Vector3(1, 1, 1)]
         };
-
-        // Act
         var result = ComplexPacket.Deserialize(original.Serialize());
 
-        // Assert
         Assert.Equal(original.Flags, result.Flags);
         Assert.Equal(original.Symbol, result.Symbol);
         Assert.Equal(original.Inner.X, result.Inner.X);
         Assert.Equal(original.Inner.Y, result.Inner.Y);
         Assert.Equal(original.SerializableData, result.SerializableData);
-        Assert.True(original.Path.SequenceEqual(result.Path));
+        Assert.Equal(original.Path, result.Path);
     }
 
     [Fact]
-    public void ComplexPacket_WithLargePath_RoundTrip_PreservesAllValues()
+    public void ComplexPacket_LargePath_RoundTrip()
     {
-        // Arrange
-        var path = Enumerable.Range(0, 100)
-            .Select(i => new Vector3(i, i * 2, i * 3))
-            .ToArray();
-        var original = new ComplexPacket
-        {
-            Flags = 255,
-            Symbol = 'Z',
-            Inner = new InnerPacket { X = -100f, Y = 200f },
-            SerializableData = new FooBar(int.MaxValue, "Large"),
-            Path = path
-        };
-
-        // Act
+        var path = Enumerable.Range(0, 100).Select(i => new Vector3(i, i * 2, i * 3)).ToArray();
+        var original = new ComplexPacket { Flags = 255, Symbol = 'Z', Inner = new InnerPacket { X = -100f, Y = 200f }, SerializableData = new FooBar(int.MaxValue, "Large"), Path = path };
         var result = ComplexPacket.Deserialize(original.Serialize());
-
-        // Assert
         Assert.Equal(100, result.Path.Length);
-        Assert.True(original.Path.SequenceEqual(result.Path));
+        Assert.Equal(original.Path, result.Path);
     }
 
     [Fact]
-    public void ComplexPacket_WithEmptyPath_RoundTrip_PreservesValues()
+    public void ComplexPacket_EmptyPath_RoundTrip()
     {
-        // Arrange
-        var original = new ComplexPacket
-        {
-            Flags = 0,
-            Symbol = 'A',
-            Inner = new InnerPacket { X = 0f, Y = 0f },
-            SerializableData = new FooBar(0, ""),
-            Path = Array.Empty<Vector3>()
-        };
-
-        // Act
+        var original = new ComplexPacket { Flags = 0, Symbol = 'A', Inner = new InnerPacket { X = 0f, Y = 0f }, SerializableData = new FooBar(0, ""), Path = [] };
         var result = ComplexPacket.Deserialize(original.Serialize());
-
-        // Assert
         Assert.Empty(result.Path);
     }
 
     [Fact]
-    public void ComplexPacket_WithUnicodeSymbol_RoundTrip_PreservesValue()
+    public void ComplexPacket_UnicodeSymbol_RoundTrip()
     {
-        // Arrange
-        var original = new ComplexPacket
-        {
-            Flags = 1,
-            Symbol = '€',
-            Inner = new InnerPacket { X = 1f, Y = 1f },
-            SerializableData = new FooBar(1, "U"),
-            Path = [new Vector3(1, 1, 1)]
-        };
-
-        // Act
+        var original = new ComplexPacket { Flags = 1, Symbol = '€', Inner = new InnerPacket { X = 1f, Y = 1f }, SerializableData = new FooBar(1, "U"), Path = [new Vector3(1, 1, 1)] };
         var result = ComplexPacket.Deserialize(original.Serialize());
-
-        // Assert
         Assert.Equal('€', result.Symbol);
     }
 
     #endregion
 
-    #region Character Encoding Tests
+    #region Character Encoding
 
-    [Fact]
-    public void CharOnlyPacket_WithAsciiCharacter_RoundTrip_PreservesValue()
+    [Theory]
+    [InlineData('A')]
+    [InlineData('日')]
+    [InlineData('€')]
+    public void CharOnlyPacket_RoundTrip_PreservesValue(char ch)
     {
-        // Arrange
-        var original = new CharOnlyPacket { Ch = 'A' };
-
-        // Act
+        var original = new CharOnlyPacket { Ch = ch };
         var result = CharOnlyPacket.Deserialize(original.Serialize());
-
-        // Assert
-        Assert.Equal('A', result.Ch);
-    }
-
-    [Fact]
-    public void CharOnlyPacket_WithUnicodeCharacter_RoundTrip_PreservesValue()
-    {
-        // Arrange
-        var original = new CharOnlyPacket { Ch = '日' }; // Japanese character
-        
-        // Act
-        var result = CharOnlyPacket.Deserialize(original.Serialize());
-
-        // Assert
-        Assert.Equal('日', result.Ch);
+        Assert.Equal(ch, result.Ch);
     }
 
     #endregion
 
-    #region Roundtrip Consistency Tests
+    #region Roundtrip Consistency
 
     [Fact]
     public void MultipleRoundTrips_ProduceConsistentResults()
     {
-        // Arrange
         var original = new SimplePacket { Id = 123, Name = "Test" };
-
-        // Act
         var first = SimplePacket.Deserialize(original.Serialize());
         var second = SimplePacket.Deserialize(first.Serialize());
         var third = SimplePacket.Deserialize(second.Serialize());
 
-        // Assert
         Assert.Equal(original.Id, first.Id);
         Assert.Equal(first.Id, second.Id);
         Assert.Equal(second.Id, third.Id);
@@ -555,15 +219,9 @@ public class PacketGeneratorTests
     [InlineData(100)]
     [InlineData(int.MaxValue)]
     [InlineData(int.MinValue)]
-    public void SimplePacket_WithDifferentIds_RoundTrip_PreservesId(int id)
+    public void SimplePacket_DifferentIds_RoundTrip(int id)
     {
-        // Arrange
-        var original = new SimplePacket { Id = id, Name = "Test" };
-
-        // Act
-        var result = SimplePacket.Deserialize(original.Serialize());
-
-        // Assert
+        var result = SimplePacket.Deserialize(new SimplePacket { Id = id, Name = "Test" }.Serialize());
         Assert.Equal(id, result.Id);
     }
 

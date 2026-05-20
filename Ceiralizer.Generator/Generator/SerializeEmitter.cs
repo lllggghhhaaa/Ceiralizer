@@ -10,11 +10,16 @@ public static class SerializeEmitter
 {
     public static void Emit(
         BlockBuilder bb,
-        List<IFieldSymbol> fields,
+        List<PacketCodeGenerator.MemberInfo> members,
+        PacketOptions globalOptions,
         GeneratorContext ctx)
     {
-        foreach (var field in fields)
-            EmitField(bb, field.Name, field.Type, ctx);
+        foreach (var member in members)
+        {
+            var fieldOptions = member.Options;
+            var cascadedOptions = CascadedOptions.Create(globalOptions, fieldOptions);
+            EmitField(bb, member.Name, member.Type, cascadedOptions, ctx);
+        }
     }
 
     public static void EmitHelper(BlockBuilder bb)
@@ -28,24 +33,25 @@ public static class SerializeEmitter
         BlockBuilder bb,
         string name,
         ITypeSymbol type,
+        CascadedOptions options,
         GeneratorContext ctx)
     {
         if (type.IsString())
         {
-            bb.Call("writer.Write", $"Encoding.UTF8.GetByteCount({name})")
-                .Call("writer.Write", name, "Encoding.UTF8");
+            bb.Call("writer.Write", $"{options.GetWriterPrefixCode()}({options.GetEncodingCode()}).GetByteCount({name})")
+                .Call("writer.Write", name, options.GetEncodingCode());
             return;
         }
 
         if (type.IsChar())
         {
-            bb.Call("writer.Write", name, "Encoding.UTF8");
+            bb.Call("writer.Write", name, options.GetEncodingCode());
             return;
         }
 
         if (type is IArrayTypeSymbol array)
         {
-            EmitArray(bb, name, array, ctx);
+            EmitArray(bb, name, array, options, ctx);
             return;
         }
 
@@ -66,11 +72,22 @@ public static class SerializeEmitter
         BlockBuilder bb,
         string name,
         IArrayTypeSymbol array,
+        CascadedOptions options,
         GeneratorContext ctx)
     {
-        bb.Line($"writer.Write({name}.Length);");
+        var size = options.Options.Collection.Size;
 
-        bb.Foreach($"var item in {name}", inner =>
-            EmitField(inner, "item", array.ElementType, ctx));
+        if (size is > 0)
+        {
+            var idx = $"{NameUtils.Sanitize(name)}_i";
+            bb.For($"int {idx} = 0; {idx} < {size.Value}; {idx}++", inner =>
+                EmitField(inner, $"{name}[{idx}]", array.ElementType, options, ctx));
+        }
+        else
+        {
+            bb.Line($"writer.Write({name}.Length);");
+            bb.Foreach($"var item in {name}", inner =>
+                EmitField(inner, "item", array.ElementType, options, ctx));
+        }
     }
 }
